@@ -1,0 +1,5 @@
+.env
+app.db
+*.exe
+vendor
+tmp

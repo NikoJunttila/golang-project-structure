@@ -1,0 +1,23 @@
+run: build
+	@./bin/discord.exe
+
+build:
+	@go build -o bin/discord.exe ./cmd/api/
+
+dev:
+	@air -c .air.toml
+
+# seed information to database. Usefull for testing
+seed:
+	@go run cmd/seed/main.go
+
+# go up to latest migration in database
+up:
+	@goose -dir .\db\schema  sqlite3 ./app.db up
+
+#go down a migration in database
+down:
+	@goose -dir .\db\schema  sqlite3 ./app.db down 
+# sqlc command. use when adding new sql queries
+gen:
+	@sqlc generate
