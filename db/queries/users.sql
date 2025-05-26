@@ -1,6 +1,7 @@
 -- name: CreateUser :one
 INSERT INTO users (
   id,
+  lookup_id,
   email,
   password_hash,
   name,
@@ -11,12 +12,16 @@ INSERT INTO users (
   created_at,
   updated_at
 ) VALUES (
-  ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
+  ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
 ) RETURNING *;
 
 -- name: GetUserByID :one
 SELECT * FROM users
 WHERE id = ?;
+
+-- name: GetUserBylookupID :one
+SELECT * FROM users
+WHERE lookup_id = ?;
 
 -- name: GetUserByEmail :one
 SELECT * FROM users

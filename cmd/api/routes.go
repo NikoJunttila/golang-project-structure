@@ -32,6 +32,9 @@ func initializeRoutes(r *chi.Mux) {
 
 	// Public routes
 	r.Group(func(r chi.Router) {
+		r.Get("/google", handlers.GetGoogleLogin)
+		r.Get("/callback", handlers.GetGoogleCallBack)
+
 		r.Post("/create", handlers.PostCreateUserHandler)
 		r.Post("/login", handlers.GetLoginHandler)
 		r.Get("/", func(w http.ResponseWriter, r *http.Request) {

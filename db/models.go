@@ -19,6 +19,7 @@ type Foo struct {
 
 type User struct {
 	ID            string
+	LookupID      string
 	Email         string
 	PasswordHash  string
 	Name          string

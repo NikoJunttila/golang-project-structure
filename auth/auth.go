@@ -29,21 +29,21 @@ func init() {
 }
 
 func MakeToken(name string) string {
-	_, tokenString, _ := tokenAuth.Encode(map[string]any{"username": name})
+	_, tokenString, _ := tokenAuth.Encode(map[string]any{"lookupID": name})
 	return tokenString
 }
 func GetUserFromContext(ctx context.Context) {
 	_, claims, _ := jwtauth.FromContext(ctx)
-	email, ok := claims["username"].(string)
+	lookupID, ok := claims["lookupID"].(string)
 	if !ok {
-		fmt.Println("username is not a string or is missing")
+		log.Println("lookupID is not a string or is missing")
 		return
 	}
-	fmt.Println(email)
+	fmt.Println(lookupID)
 
-	user, err := db.Get().GetUserByEmail(ctx, email)
+	user, err := db.Get().GetUserBylookupID(ctx, lookupID)
 	if err != nil {
-		log.Println("failed login")
+		log.Println("failed login", err)
 	}
 	fmt.Println(user)
 }

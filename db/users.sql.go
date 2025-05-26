@@ -13,6 +13,7 @@ import (
 const createUser = `-- name: CreateUser :one
 INSERT INTO users (
   id,
+  lookup_id,
   email,
   password_hash,
   name,
@@ -23,12 +24,13 @@ INSERT INTO users (
   created_at,
   updated_at
 ) VALUES (
-  ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
-) RETURNING id, email, password_hash, name, avatar_url, provider, provider_id, email_verified, disabled, created_at, updated_at
+  ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
+) RETURNING id, lookup_id, email, password_hash, name, avatar_url, provider, provider_id, email_verified, disabled, created_at, updated_at
 `
 
 type CreateUserParams struct {
 	ID            string
+	LookupID      string
 	Email         string
 	PasswordHash  string
 	Name          string
@@ -43,6 +45,7 @@ type CreateUserParams struct {
 func (q *Queries) CreateUser(ctx context.Context, arg CreateUserParams) (User, error) {
 	row := q.db.QueryRowContext(ctx, createUser,
 		arg.ID,
+		arg.LookupID,
 		arg.Email,
 		arg.PasswordHash,
 		arg.Name,
@@ -56,6 +59,7 @@ func (q *Queries) CreateUser(ctx context.Context, arg CreateUserParams) (User, e
 	var i User
 	err := row.Scan(
 		&i.ID,
+		&i.LookupID,
 		&i.Email,
 		&i.PasswordHash,
 		&i.Name,
@@ -81,7 +85,7 @@ func (q *Queries) DeleteUser(ctx context.Context, id string) error {
 }
 
 const getUserByEmail = `-- name: GetUserByEmail :one
-SELECT id, email, password_hash, name, avatar_url, provider, provider_id, email_verified, disabled, created_at, updated_at FROM users
+SELECT id, lookup_id, email, password_hash, name, avatar_url, provider, provider_id, email_verified, disabled, created_at, updated_at FROM users
 WHERE email = ?
 `
 
@@ -90,6 +94,7 @@ func (q *Queries) GetUserByEmail(ctx context.Context, email string) (User, error
 	var i User
 	err := row.Scan(
 		&i.ID,
+		&i.LookupID,
 		&i.Email,
 		&i.PasswordHash,
 		&i.Name,
@@ -105,7 +110,7 @@ func (q *Queries) GetUserByEmail(ctx context.Context, email string) (User, error
 }
 
 const getUserByID = `-- name: GetUserByID :one
-SELECT id, email, password_hash, name, avatar_url, provider, provider_id, email_verified, disabled, created_at, updated_at FROM users
+SELECT id, lookup_id, email, password_hash, name, avatar_url, provider, provider_id, email_verified, disabled, created_at, updated_at FROM users
 WHERE id = ?
 `
 
@@ -114,6 +119,7 @@ func (q *Queries) GetUserByID(ctx context.Context, id string) (User, error) {
 	var i User
 	err := row.Scan(
 		&i.ID,
+		&i.LookupID,
 		&i.Email,
 		&i.PasswordHash,
 		&i.Name,
@@ -129,7 +135,7 @@ func (q *Queries) GetUserByID(ctx context.Context, id string) (User, error) {
 }
 
 const getUserByProviderID = `-- name: GetUserByProviderID :one
-SELECT id, email, password_hash, name, avatar_url, provider, provider_id, email_verified, disabled, created_at, updated_at FROM users
+SELECT id, lookup_id, email, password_hash, name, avatar_url, provider, provider_id, email_verified, disabled, created_at, updated_at FROM users
 WHERE provider = ? AND provider_id = ?
 `
 
@@ -143,6 +149,32 @@ func (q *Queries) GetUserByProviderID(ctx context.Context, arg GetUserByProvider
 	var i User
 	err := row.Scan(
 		&i.ID,
+		&i.LookupID,
+		&i.Email,
+		&i.PasswordHash,
+		&i.Name,
+		&i.AvatarUrl,
+		&i.Provider,
+		&i.ProviderID,
+		&i.EmailVerified,
+		&i.Disabled,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
+}
+
+const getUserBylookupID = `-- name: GetUserBylookupID :one
+SELECT id, lookup_id, email, password_hash, name, avatar_url, provider, provider_id, email_verified, disabled, created_at, updated_at FROM users
+WHERE lookup_id = ?
+`
+
+func (q *Queries) GetUserBylookupID(ctx context.Context, lookupID string) (User, error) {
+	row := q.db.QueryRowContext(ctx, getUserBylookupID, lookupID)
+	var i User
+	err := row.Scan(
+		&i.ID,
+		&i.LookupID,
 		&i.Email,
 		&i.PasswordHash,
 		&i.Name,
@@ -170,7 +202,7 @@ SET
   created_at = ?,
   updated_at = ?
 WHERE id = ?
-RETURNING id, email, password_hash, name, avatar_url, provider, provider_id, email_verified, disabled, created_at, updated_at
+RETURNING id, lookup_id, email, password_hash, name, avatar_url, provider, provider_id, email_verified, disabled, created_at, updated_at
 `
 
 type UpdateUserParams struct {
@@ -202,6 +234,7 @@ func (q *Queries) UpdateUser(ctx context.Context, arg UpdateUserParams) (User, e
 	var i User
 	err := row.Scan(
 		&i.ID,
+		&i.LookupID,
 		&i.Email,
 		&i.PasswordHash,
 		&i.Name,

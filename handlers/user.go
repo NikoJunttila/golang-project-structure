@@ -31,6 +31,7 @@ func PostCreateUserHandler(w http.ResponseWriter, r *http.Request) {
 	}
 	user, err := db.Get().CreateUser(r.Context(), db.CreateUserParams{
 		ID:           uuid.New().String(),
+		LookupID:     uuid.New().String(),
 		Email:        params.Email,
 		PasswordHash: params.Password,
 		// Name          string
@@ -61,8 +62,12 @@ func GetLoginHandler(w http.ResponseWriter, r *http.Request) {
 		fmt.Println("no email")
 		return
 	}
-
-	token := auth.MakeToken(params.Email)
+	user, err := db.Get().GetUserByEmail(r.Context(), params.Email)
+	if err != nil {
+		log.Println("err: ", err)
+		RespondWithError(w, 404, "error getting user")
+	}
+	token := auth.MakeToken(user.LookupID)
 
 	http.SetCookie(w, &http.Cookie{
 		HttpOnly: true,

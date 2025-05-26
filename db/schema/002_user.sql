@@ -1,6 +1,7 @@
 -- +goose Up
  CREATE TABLE IF NOT EXISTS users (
      id TEXT PRIMARY KEY,
+     lookup_id TEXT NOT NULL,
      email TEXT UNIQUE NOT NULL,
      password_hash TEXT NOT NULL, -- "" for OAuth-only users
      name TEXT NOT NULL,
