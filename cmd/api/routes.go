@@ -36,7 +36,7 @@ func initializeRoutes(r *chi.Mux) {
 		r.Get("/callback", handlers.GetGoogleCallBack)
 
 		r.Post("/create", handlers.PostCreateUserHandler)
-		r.Post("/login", handlers.GetLoginHandler)
+		r.Post("/login", handlers.PostLoginHandler)
 		r.Get("/", func(w http.ResponseWriter, r *http.Request) {
 			w.Write([]byte("welcome anonymous"))
 		})

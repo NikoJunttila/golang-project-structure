@@ -1,15 +1,16 @@
 package handlers
 
 import (
-	"encoding/json"
+	"database/sql"
 	"fmt"
 	"log"
 	"net/http"
+	"strings"
 	"time"
 
-	"github.com/google/uuid"
 	"github.com/nikojunttila/community/auth"
 	"github.com/nikojunttila/community/db"
+	"github.com/nikojunttila/community/types"
 )
 
 type createUserParams struct {
@@ -22,50 +23,55 @@ type loginParams struct {
 }
 
 func PostCreateUserHandler(w http.ResponseWriter, r *http.Request) {
-	decoder := json.NewDecoder(r.Body)
-	params := createUserParams{}
-	err := decoder.Decode(&params)
-	if err != nil {
-		RespondWithError(w, 400, fmt.Sprintf("error parsing JSON: %v", err))
+	var params createUserParams
+	if !DecodeJSONBody(w, r, &params, 0) {
 		return
 	}
-	user, err := db.Get().CreateUser(r.Context(), db.CreateUserParams{
-		ID:           uuid.New().String(),
-		LookupID:     uuid.New().String(),
-		Email:        params.Email,
-		PasswordHash: params.Password,
-		// Name          string
-		// AvatarUrl     string
-		// Provider      string
-		// ProviderID    string
-		// EmailVerified bool
-		// CreatedAt     time.Time
-		// UpdatedAt     time.Time
-	})
-	if err != nil {
-		log.Println("err creating user", err)
-		RespondWithError(w, 400, "error creating user")
+	// Validation
+	if params.Email == "" || params.Password == "" {
+		RespondWithError(w, http.StatusBadRequest, "email and password are required")
 		return
+	}
+	exists, err := auth.CheckUserExists(r.Context(), params.Email)
+	if err != nil {
+		RespondWithError(w, http.StatusInternalServerError, "Internal server error")
+		return
+	}
+	if exists {
+		RespondWithError(w, http.StatusBadRequest, "User already exists")
+		return
+	}
+	cleanedEmail := strings.TrimSpace(strings.ToLower(params.Email))
+	createParams := types.CreateUserParams{
+		Email: cleanedEmail,
+		Name:  "",
+	}
+	user, err := auth.CreateUser(r.Context(), params.Password, createParams, types.OauthCreate{})
+	if err != nil {
+		RespondWithError(w, http.StatusBadRequest, fmt.Sprintf("error creating user: %v", err))
 	}
 	fmt.Println(user)
-	RespondWithJson(w, 200, "created user")
+	RespondWithJson(w, http.StatusOK, "created user")
 }
-func GetLoginHandler(w http.ResponseWriter, r *http.Request) {
-	decoder := json.NewDecoder(r.Body)
+
+func PostLoginHandler(w http.ResponseWriter, r *http.Request) {
 	params := loginParams{}
-	err := decoder.Decode(&params)
-	if err != nil {
-		RespondWithError(w, 400, fmt.Sprintf("error parsing JSON: %v", err))
+	if !DecodeJSONBody(w, r, &params, 0) {
 		return
 	}
-	if params.Email == "" {
-		fmt.Println("no email")
+	if params.Email == "" || params.Password == "" {
+		RespondWithError(w, http.StatusBadRequest, "no email or password")
 		return
 	}
 	user, err := db.Get().GetUserByEmail(r.Context(), params.Email)
-	if err != nil {
+	if err == sql.ErrNoRows {
 		log.Println("err: ", err)
-		RespondWithError(w, 404, "error getting user")
+		RespondWithError(w, http.StatusBadRequest, "this email does not exist")
+		return
+	}
+	if err != nil {
+		RespondWithError(w, http.StatusInternalServerError, fmt.Sprintf("database error %v", err))
+		return
 	}
 	token := auth.MakeToken(user.LookupID)
 
@@ -78,7 +84,7 @@ func GetLoginHandler(w http.ResponseWriter, r *http.Request) {
 		Name:  "jwt", // Must be named "jwt" or else the token cannot be searched for by jwtauth.Verifier.
 		Value: token,
 	})
-	RespondWithJson(w, 200, token)
+	RespondWithJson(w, http.StatusOK, token)
 }
 
 func GetProfileHandler(w http.ResponseWriter, r *http.Request) {
