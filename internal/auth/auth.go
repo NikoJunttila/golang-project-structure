@@ -20,6 +20,7 @@ func GetTokenAuth() *jwtauth.JWTAuth {
 func InitAuth() {
 	secret := util.GetEnv("JWT_SECRET")
 	tokenAuth = jwtauth.New("HS256", []byte(secret), nil)
+	NewAuth()
 }
 
 func MakeToken(name string) string {

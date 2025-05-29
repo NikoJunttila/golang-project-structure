@@ -15,6 +15,7 @@ func InitializeRoutes(r *chi.Mux) {
 	r.Get("/", func(w http.ResponseWriter, r *http.Request) {
 		w.Write([]byte("Welcome anonymous"))
 	})
+
 	r.Route("/auth", func(r chi.Router) {
 		// Seek, verify and validate JWT tokens
 		r.Use(jwtauth.Verifier(auth.GetTokenAuth()))
@@ -44,8 +45,8 @@ func registerAuthRoutes(r chi.Router) {
 }
 
 func registerPublicRoutes(r chi.Router) {
-	r.Get("/google_login", handlers.GetGoogleLogin)
-	r.Get("/google_callback", handlers.GetGoogleCallBack)
+	r.Get("/{provider}/begin", handlers.GetBeginAuth)
+	r.Get("/{provider}/callback", handlers.GetAuthCallBack)
 
 	r.Post("/email_create", handlers.PostCreateUserHandlerEmail)
 	r.Post("/email_login", handlers.PostLoginHandler)
