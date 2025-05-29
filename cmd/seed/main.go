@@ -4,7 +4,7 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/nikojunttila/community/db"
+	"github.com/nikojunttila/community/internal/db"
 )
 
 func main() {

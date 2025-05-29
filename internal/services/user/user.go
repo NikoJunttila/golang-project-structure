@@ -1,15 +1,15 @@
-package auth
+package userService
 
 import (
 	"context"
 	"database/sql"
 	"errors"
-	"log"
 	"time"
 
 	"github.com/google/uuid"
-	"github.com/nikojunttila/community/db"
-	"github.com/nikojunttila/community/types"
+	"github.com/nikojunttila/community/internal/auth"
+	"github.com/nikojunttila/community/internal/db"
+	"github.com/rs/zerolog/log"
 )
 
 func CheckUserExists(ctx context.Context, email string) (bool, error) {
@@ -20,27 +20,21 @@ func CheckUserExists(ctx context.Context, email string) (bool, error) {
 	if errors.Is(err, sql.ErrNoRows) {
 		return false, nil // user does not exist
 	}
-	log.Println("error checking user existence:", err)
+	log.Error().Err(err).Msg("error checking if user exists")
 	return false, err // actual error
 }
 
-//check user use
-/*	exists, err := auth.CheckUserExists(r.Context(), params.Email)
-if err != nil {
-	RespondWithError(w, http.StatusInternalServerError, "Internal server error")
-	return
-}
-if exists {
-	RespondWithError(w, http.StatusBadRequest, "User already exists")
-	return
-}*/
-
 // CheckUserExistIfNotCreate checks if a user exists by email, creates if not exists
-func CreateUser(ctx context.Context, password string, params types.CreateUserParams, oAuth types.OauthCreate) (db.User, error) {
+func CreateUser(ctx context.Context, password string, params CreateUserParams, oAuth OauthCreate) (db.User, error) {
 	var passHash string
+	var err error
 	if !oAuth.IsOAuth {
+		oAuth.Provider = params.Service
 		//use password to hash
-		passHash = "hashed" //actual hash here
+		passHash, err = auth.HashPassword(password)
+		if err != nil {
+			return db.User{}, err
+		}
 	}
 	createParams := db.CreateUserParams{
 		ID:            uuid.New().String(),

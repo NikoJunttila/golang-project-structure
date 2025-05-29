@@ -13,11 +13,14 @@ seed:
 
 # go up to latest migration in database
 up:
-	@goose -dir .\db\schema  sqlite3 ./app.db up
+	@goose -dir .\sql\schema  sqlite3 ./app.db up
 
 #go down a migration in database
 down:
-	@goose -dir .\db\schema  sqlite3 ./app.db down 
+	@goose -dir .\sql\schema  sqlite3 ./app.db down 
 # sqlc command. use when adding new sql queries
 gen:
 	@sqlc generate
+
+test:
+	@go test ./tests/

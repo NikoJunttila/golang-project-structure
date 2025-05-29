@@ -2,16 +2,13 @@ package auth
 
 import (
 	"context"
-	"fmt"
 
 	"github.com/go-chi/jwtauth/v5"
-	"github.com/nikojunttila/community/util"
+	"github.com/nikojunttila/community/internal/util"
 
-	"log"
+	"github.com/nikojunttila/community/internal/db"
 
-	"github.com/nikojunttila/community/db"
-
-	"github.com/joho/godotenv"
+	"github.com/rs/zerolog/log"
 )
 
 var tokenAuth *jwtauth.JWTAuth
@@ -20,10 +17,7 @@ func GetTokenAuth() *jwtauth.JWTAuth {
 	return tokenAuth
 }
 
-func init() {
-	if err := godotenv.Load(); err != nil {
-		log.Fatal("Error loading .env file:", err)
-	}
+func InitAuth() {
 	secret := util.GetEnv("JWT_SECRET")
 	tokenAuth = jwtauth.New("HS256", []byte(secret), nil)
 }
@@ -32,18 +26,16 @@ func MakeToken(name string) string {
 	_, tokenString, _ := tokenAuth.Encode(map[string]any{"lookupID": name})
 	return tokenString
 }
-func GetUserFromContext(ctx context.Context) {
-	_, claims, _ := jwtauth.FromContext(ctx)
+func GetUserFromContext(ctx context.Context) (db.User, error) {
+	_, claims, err := jwtauth.FromContext(ctx)
 	lookupID, ok := claims["lookupID"].(string)
 	if !ok {
-		log.Println("lookupID is not a string or is missing")
-		return
+		log.Warn().Msgf("Error with getting lookupID %v", err)
+		return db.User{}, err
 	}
-	fmt.Println(lookupID)
-
 	user, err := db.Get().GetUserBylookupID(ctx, lookupID)
 	if err != nil {
-		log.Println("failed login", err)
+		log.Warn().Msgf("Error with finding user with lookupID %v %v", lookupID, err)
 	}
-	fmt.Println(user)
+	return user, nil
 }

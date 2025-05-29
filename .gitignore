@@ -1,5 +1,7 @@
 .env
-app.db
+*.db
 *.exe
 vendor
 tmp
+bin
+logs

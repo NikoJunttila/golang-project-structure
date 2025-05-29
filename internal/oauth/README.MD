@@ -6,7 +6,7 @@ A concise guide for frontend developers to implement Google OAuth using a popup-
 
 1. **Backend OAuth endpoints** (handled by your backend team):
    - `GET /google` - Redirects to Google's authorization URL
-   - `POST /auth/callback` - Exchanges authorization code for tokens
+   - `POST /auth/google_callback` - Exchanges authorization code for tokens
 
 2. **Browser Requirements**:
    - Popup windows must be allowed

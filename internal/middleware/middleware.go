@@ -1,4 +1,4 @@
-package main
+package customMiddleware
 
 import (
 	"log"
@@ -9,7 +9,7 @@ import (
 	chimiddleware "github.com/go-chi/chi/v5/middleware"
 )
 
-func initializeMiddleware(r *chi.Mux) {
+func InitializeMiddleware(r *chi.Mux) {
 	//middleware is called in reverse order.
 	r.Use(chimiddleware.RequestID)
 	r.Use(chimiddleware.RealIP)

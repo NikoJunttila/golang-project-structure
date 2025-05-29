@@ -3,19 +3,22 @@ package handlers
 import (
 	"encoding/json"
 	"fmt"
-	"log"
 	"net/http"
+
+	"github.com/rs/zerolog/log"
 )
 
-func RespondWithError(w http.ResponseWriter, code int, msg string) {
+type errResponse struct {
+	Error string `json:"error"`
+}
+
+func RespondWithError(w http.ResponseWriter, code int, msg string, err error) {
 	if code > 499 {
-		log.Println("Responding with 5XX error:", msg)
+		log.Error().Err(err).Int("status", code).Msg(msg)
+	} else {
+		fmt.Println("this logger", err)
+		log.Warn().Err(err).Int("status", code).Msg("Client error response")
 	}
-
-	type errResponse struct {
-		Error string `json:"error"`
-	}
-
 	RespondWithJson(w, code, errResponse{
 		Error: msg,
 	})
@@ -24,13 +27,16 @@ func RespondWithError(w http.ResponseWriter, code int, msg string) {
 func RespondWithJson(w http.ResponseWriter, code int, payload any) {
 	dat, err := json.Marshal(payload)
 	if err != nil {
-		log.Printf("failed to marshal JSON response %v", payload)
+		log.Warn().Msgf("Failed to marshal JSON response %v", payload)
 		w.WriteHeader(500)
 		return
 	}
 	w.Header().Add("Content-Type", "application/json")
 	w.WriteHeader(code)
-	w.Write(dat)
+	_, err = w.Write(dat)
+	if err != nil {
+		log.Warn().Msg("Failed to write JSON response")
+	}
 }
 
 const MAXSIZE = 1048576
@@ -42,8 +48,11 @@ func DecodeJSONBody(w http.ResponseWriter, r *http.Request, v any, maxSize int64
 	}
 
 	r.Body = http.MaxBytesReader(w, r.Body, maxSize)
-	defer r.Body.Close()
-
+	defer func() {
+		if err := r.Body.Close(); err != nil {
+			log.Warn().Err(err).Msg("Failed to close request body")
+		}
+	}()
 	decoder := json.NewDecoder(r.Body)
 	decoder.DisallowUnknownFields()
 
@@ -63,12 +72,12 @@ func DecodeJSONWithError(w http.ResponseWriter, decoder *json.Decoder, v any) bo
 func handleJSONDecodeError(w http.ResponseWriter, err error) {
 	switch err := err.(type) {
 	case *json.SyntaxError:
-		RespondWithError(w, http.StatusBadRequest, "invalid JSON syntax")
+		RespondWithError(w, http.StatusBadRequest, "invalid JSON syntax", err)
 	case *json.UnmarshalTypeError:
-		RespondWithError(w, http.StatusBadRequest, fmt.Sprintf("invalid type for field %s", err.Field))
+		RespondWithError(w, http.StatusBadRequest, fmt.Sprintf("invalid type for field %s", err.Field), err)
 	case *http.MaxBytesError:
-		RespondWithError(w, http.StatusRequestEntityTooLarge, "request body too large")
+		RespondWithError(w, http.StatusRequestEntityTooLarge, "request body too large", err)
 	default:
-		RespondWithError(w, http.StatusBadRequest, "error parsing JSON")
+		RespondWithError(w, http.StatusBadRequest, "error parsing JSON", err)
 	}
 }

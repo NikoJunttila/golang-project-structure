@@ -8,9 +8,21 @@ import (
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/cors"
 	"github.com/joho/godotenv"
+	"github.com/nikojunttila/community/internal/auth"
+	"github.com/nikojunttila/community/internal/db"
+	"github.com/nikojunttila/community/internal/logger"
+	customMW "github.com/nikojunttila/community/internal/middleware"
+	"github.com/nikojunttila/community/internal/routes"
+	"github.com/nikojunttila/community/internal/util"
 )
 
 func main() {
+	if err := godotenv.Load(); err != nil {
+		log.Fatal("Error loading .env file:", err)
+	}
+	logger.LoggerSetup()
+	db.InitDefault()
+	auth.InitAuth()
 	r := chi.NewRouter()
 	r.Use(cors.Handler(cors.Options{
 		AllowedOrigins:   []string{"https://*", "http://*"},
@@ -20,17 +32,10 @@ func main() {
 		AllowCredentials: true,
 		MaxAge:           300,
 	}))
-	initializeMiddleware(r)
-	initializeRoutes(r)
-	portAddr := ":3000"
+	customMW.InitializeMiddleware(r)
+	routes.InitializeRoutes(r)
+	portAddr := fmt.Sprintf(":%s", util.GetEnv("PORT"))
 	fmt.Println("listening at ", portAddr)
-	http.ListenAndServe(portAddr, r)
-}
-
-func init() {
-	//load .env file
-	if err := godotenv.Load(); err != nil {
-		log.Fatal("Error loading .env file:", err)
-	}
-	fmt.Println("Loaded env")
+	err := http.ListenAndServe(portAddr, r)
+	log.Fatalln("wtf??? ", err)
 }

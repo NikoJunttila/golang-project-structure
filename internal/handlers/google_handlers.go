@@ -9,10 +9,12 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/nikojunttila/community/auth"
-	"github.com/nikojunttila/community/db"
-	"github.com/nikojunttila/community/services"
-	"github.com/nikojunttila/community/types"
+	"github.com/rs/zerolog/log"
+
+	"github.com/nikojunttila/community/internal/auth"
+	"github.com/nikojunttila/community/internal/db"
+	oath "github.com/nikojunttila/community/internal/oauth"
+	userService "github.com/nikojunttila/community/internal/services/user"
 )
 
 // GoogleUserInfo represents the user data from Google
@@ -84,6 +86,7 @@ func GetGoogleLogin(w http.ResponseWriter, r *http.Request) {
 	// Generate secure random state
 	state, err := generateState()
 	if err != nil {
+		log.Warn().Msg("google login failed to generate state")
 		http.Error(w, "Failed to generate state", http.StatusInternalServerError)
 		return
 	}
@@ -91,12 +94,13 @@ func GetGoogleLogin(w http.ResponseWriter, r *http.Request) {
 	// Store state with 10-minute expiry
 	expiry := time.Now().Add(10 * time.Minute)
 	if err := stateStore.Set(state, expiry); err != nil {
+		log.Warn().Msg("google login failed to store state")
 		http.Error(w, "Failed to store state", http.StatusInternalServerError)
 		return
 	}
 
 	// Get OAuth config and generate auth URL
-	cfg := services.GoogleConfig()
+	cfg := oath.GoogleConfig()
 	authURL := cfg.AuthCodeURL(state)
 
 	// Set security headers
@@ -112,11 +116,13 @@ func GetGoogleCallBack(w http.ResponseWriter, r *http.Request) {
 	// Validate state parameter
 	state := r.URL.Query().Get("state")
 	if state == "" {
+		log.Warn().Msg("google callback missing state param")
 		http.Error(w, "Missing state parameter", http.StatusBadRequest)
 		return
 	}
 
 	if !stateStore.Validate(state) {
+		log.Warn().Msg("google callback invalid or expired state")
 		http.Error(w, "Invalid or expired state", http.StatusBadRequest)
 		return
 	}
@@ -127,6 +133,7 @@ func GetGoogleCallBack(w http.ResponseWriter, r *http.Request) {
 	// Check for error parameter
 	if errParam := r.URL.Query().Get("error"); errParam != "" {
 		errorDesc := r.URL.Query().Get("error_description")
+		log.Error().Msgf("OAuth error: %s - %s", errParam, errorDesc)
 		http.Error(w, fmt.Sprintf("OAuth error: %s - %s", errParam, errorDesc), http.StatusBadRequest)
 		return
 	}
@@ -134,14 +141,16 @@ func GetGoogleCallBack(w http.ResponseWriter, r *http.Request) {
 	// Get authorization code
 	code := r.URL.Query().Get("code")
 	if code == "" {
+		log.Error().Msg("google callback Missing auth code")
 		http.Error(w, "Missing authorization code", http.StatusBadRequest)
 		return
 	}
 
 	// Exchange code for token
-	cfg := services.GoogleConfig()
+	cfg := oath.GoogleConfig()
 	token, err := cfg.Exchange(r.Context(), code)
 	if err != nil {
+		log.Error().Msg("google callback failed to exhance code for token")
 		http.Error(w, "Failed to exchange code for token", http.StatusInternalServerError)
 		return
 	}
@@ -149,6 +158,7 @@ func GetGoogleCallBack(w http.ResponseWriter, r *http.Request) {
 	// Fetch user info using the token
 	userInfo, err := fetchGoogleUserInfo(token.AccessToken)
 	if err != nil {
+		log.Error().Msg("google callback failed to fetch user info")
 		http.Error(w, "Failed to fetch user information", http.StatusInternalServerError)
 		return
 	}
@@ -158,23 +168,23 @@ func GetGoogleCallBack(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Email not verified", http.StatusBadRequest)
 		return
 	}
-	exists, err := auth.CheckUserExists(r.Context(), userInfo.Email)
+	exists, err := userService.CheckUserExists(r.Context(), userInfo.Email)
 	if err != nil {
-		RespondWithError(w, http.StatusInternalServerError, "Internal server error")
+		RespondWithError(w, http.StatusInternalServerError, "Internal server error", err)
 		return
 	}
 	var user db.User
 	if exists {
 		user, err = db.Get().GetUserByEmail(r.Context(), userInfo.Email)
 		if err != nil {
-			RespondWithError(w, http.StatusInternalServerError, "Internal server error")
+			RespondWithError(w, http.StatusInternalServerError, "Internal server error", err)
 		}
 	} else {
-		user, err = auth.CreateUser(r.Context(), "", types.CreateUserParams{
+		user, err = userService.CreateUser(r.Context(), "", userService.CreateUserParams{
 			Email:     userInfo.Email,
 			Name:      userInfo.Name,
 			AvatarUrl: userInfo.Picture,
-		}, types.OauthCreate{
+		}, userService.OauthCreate{
 			IsOAuth:       true,
 			EmailVerified: true,
 			Provider:      "google",
@@ -186,17 +196,71 @@ func GetGoogleCallBack(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 	jwtToken := auth.MakeToken(user.LookupID)
-	http.SetCookie(w, &http.Cookie{
-		HttpOnly: true,
-		Expires:  time.Now().Add(7 * 24 * time.Hour),
-		SameSite: http.SameSiteLaxMode,
-		// Uncomment below for HTTPS:
-		// Secure: true,
-		Name:  "jwt",
-		Value: jwtToken,
-	})
-	// For development: return user data to the popup window
-	sendUserDataToPopup(w, userInfo)
+
+	sendAuthDataToMainWindow(w, userInfo, jwtToken)
+}
+
+// New function to send both user data and JWT token to main window
+func sendAuthDataToMainWindow(w http.ResponseWriter, userInfo *GoogleUserInfo, jwtToken string) {
+	// Create response data that includes both user info and token
+	authData := map[string]any{
+		"user":    userInfo,
+		"token":   jwtToken,
+		"success": true,
+	}
+
+	// Sanitize data for JSON embedding
+	authJSON, err := json.Marshal(authData)
+	if err != nil {
+		http.Error(w, "Failed to encode auth data", http.StatusInternalServerError)
+		return
+	}
+
+	// Escape JSON for safe embedding in JavaScript
+	escapedJSON := string(authJSON)
+
+	// Set security headers
+	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+	w.Header().Set("X-Content-Type-Options", "nosniff")
+	w.Header().Set("X-Frame-Options", "DENY")
+	w.Header().Set("Content-Security-Policy", "default-src 'none'; script-src 'unsafe-inline'")
+
+	// Get allowed origin from config
+	allowedOrigin := "http://localhost:5173" // TODO: Move to config
+
+	html := fmt.Sprintf(`<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <title>OAuth Success</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+</head>
+<body>
+    <div id="status">
+        <p>Authentication successful! Redirecting...</p>
+        <p><small>If this window doesn't close automatically, you can close it manually.</small></p>
+    </div>
+    <script>
+        (function() {
+            try {
+                if (window.opener) {
+                    window.opener.postMessage(%s, %q);
+                    window.close();
+                } else {
+                    document.getElementById('status').innerHTML = 
+                        '<p>Authentication successful!</p><p>Please close this window and return to the application.</p>';
+                }
+            } catch (e) {
+                console.error('Failed to send message to parent:', e);
+                document.getElementById('status').innerHTML = 
+                    '<p>Authentication successful!</p><p>Please close this window and return to the application.</p>';
+            }
+        })();
+    </script>
+</body>
+</html>`, escapedJSON, allowedOrigin)
+
+	fmt.Fprint(w, html)
 }
 
 // fetchGoogleUserInfo retrieves user information from Google API
@@ -236,60 +300,4 @@ func fetchGoogleUserInfo(accessToken string) (*GoogleUserInfo, error) {
 	}
 
 	return &userInfo, nil
-}
-
-// sendUserDataToPopup sends user data back to the popup window
-func sendUserDataToPopup(w http.ResponseWriter, userInfo *GoogleUserInfo) {
-	// Sanitize data for JSON embedding
-	userJSON, err := json.Marshal(userInfo)
-	if err != nil {
-		http.Error(w, "Failed to encode user data", http.StatusInternalServerError)
-		return
-	}
-
-	// Escape JSON for safe embedding in JavaScript
-	escapedJSON := string(userJSON)
-
-	// Set security headers
-	w.Header().Set("Content-Type", "text/html; charset=utf-8")
-	w.Header().Set("X-Content-Type-Options", "nosniff")
-	w.Header().Set("X-Frame-Options", "DENY")
-	w.Header().Set("Content-Security-Policy", "default-src 'none'; script-src 'unsafe-inline'")
-
-	// Get allowed origin from config (don't hardcode)
-	allowedOrigin := "http://localhost:5173" // TODO: Move to config
-
-	html := fmt.Sprintf(`<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="utf-8">
-    <title>OAuth Success</title>
-    <meta name="viewport" content="width=device-width, initial-scale=1">
-</head>
-<body>
-    <div id="status">
-        <p>Authentication successful! Redirecting...</p>
-        <p><small>If this window doesn't close automatically, you can close it manually.</small></p>
-    </div>
-    <script>
-        (function() {
-            try {
-                if (window.opener) {
-                    window.opener.postMessage(%s, %q);
-                    window.close();
-                } else {
-                    document.getElementById('status').innerHTML = 
-                        '<p>Authentication successful!</p><p>Please close this window and return to the application.</p>';
-                }
-            } catch (e) {
-                console.error('Failed to send message to parent:', e);
-                document.getElementById('status').innerHTML = 
-                    '<p>Authentication successful!</p><p>Please close this window and return to the application.</p>';
-            }
-        })();
-    </script>
-</body>
-</html>`, escapedJSON, allowedOrigin)
-
-	fmt.Fprint(w, html)
 }

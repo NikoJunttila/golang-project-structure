@@ -1,14 +1,15 @@
 package util
 
 import (
-	"log"
 	"os"
+
+	"github.com/rs/zerolog/log"
 )
 
 func GetEnv(name string) string {
 	value := os.Getenv(name)
 	if value == "" {
-		log.Panicln("Failed to find ", name)
+		log.Panic().Msgf("Failed to find %s", name)
 	}
 	return value
 }
