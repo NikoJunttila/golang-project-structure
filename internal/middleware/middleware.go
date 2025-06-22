@@ -1,12 +1,12 @@
 package customMiddleware
 
 import (
-	"log"
 	"net/http"
 	"time"
 
 	"github.com/go-chi/chi/v5"
 	chimiddleware "github.com/go-chi/chi/v5/middleware"
+  "github.com/rs/zerolog/log"
 )
 
 func InitializeMiddleware(r *chi.Mux) {
@@ -21,7 +21,7 @@ func InitializeMiddleware(r *chi.Mux) {
 
 func middlewareTest(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		log.Println("middleware test hit")
+		log.Info().Msgf("middleware %v", r.Cookies())
 		next.ServeHTTP(w, r)
 	})
 }

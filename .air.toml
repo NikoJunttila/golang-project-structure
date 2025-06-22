@@ -7,9 +7,9 @@ tmp_dir = "tmp"
 
 [build]
 # Just plain old shell command. You could use `make` as well.
-cmd = "go build -o ./tmp/main.exe ./cmd/api/"
+cmd = "go build -o ./tmp/discord.exe ./cmd/api/"
 # Binary file yields from `cmd`.
-bin = "tmp/main"
+bin = "tmp/discord.exe"
 # Watch these filename extensions.
 include_ext = ["go", "tpl", "tmpl", "html"]
 # Ignore these filename extensions or directories.

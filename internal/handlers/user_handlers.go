@@ -2,111 +2,240 @@ package handlers
 
 import (
 	"database/sql"
-	"fmt"
+	"errors"
+	"log/slog"
 	"net/http"
+	"regexp"
 	"strings"
 	"time"
 
+	"github.com/rs/zerolog/log"
 	"github.com/nikojunttila/community/internal/auth"
 	"github.com/nikojunttila/community/internal/db"
 	userService "github.com/nikojunttila/community/internal/services/user"
 )
 
-type createUserParams struct {
-	Password string `json:"password"`
-	Email    string `json:"email"`
-}
-type loginParams struct {
-	Password string `json:"password"`
-	Email    string `json:"email"`
+var (
+	// Email validation regex (basic but more robust than none)
+	emailRegex = regexp.MustCompile(`^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$`)
+	
+	// Common validation errors
+	ErrInvalidEmail    = errors.New("invalid email format")
+	ErrWeakPassword    = errors.New("password must be at least 8 characters")
+	ErrMissingFields   = errors.New("email and password are required")
+)
+
+type CreateUserRequest struct {
+	Password string `json:"password" validate:"required,min=8"`
+	Email    string `json:"email" validate:"required,email"`
 }
 
+type LoginRequest struct {
+	Password string `json:"password" validate:"required"`
+	Email    string `json:"email" validate:"required,email"`
+}
+
+type LoginResponse struct {
+	Token string `json:"token"`
+	User  *User  `json:"user,omitempty"`
+}
+
+type User struct {
+	ID       string `json:"id"`
+	Email    string `json:"email"`
+	Name     string `json:"name"`
+	Provider string `json:"provider"`
+}
+
+// validateCreateUserRequest validates and sanitizes user creation input
+func validateCreateUserRequest(req *CreateUserRequest) error {
+	if req.Email == "" || req.Password == "" {
+		return ErrMissingFields
+	}
+	
+	// Clean and validate email
+	req.Email = strings.TrimSpace(strings.ToLower(req.Email))
+	if !emailRegex.MatchString(req.Email) {
+		return ErrInvalidEmail
+	}
+	
+	if len(req.Password) < 8 {
+		return ErrWeakPassword
+	}
+	
+	return nil
+}
+
+// validateLoginRequest validates login input
+func validateLoginRequest(req *LoginRequest) error {
+	if req.Email == "" || req.Password == "" {
+		return ErrMissingFields
+	}
+	
+	req.Email = strings.TrimSpace(strings.ToLower(req.Email))
+	if !emailRegex.MatchString(req.Email) {
+		return ErrInvalidEmail
+	}
+	
+	return nil
+}
+
+// PostCreateUserHandlerEmail handles user registration via email
 func PostCreateUserHandlerEmail(w http.ResponseWriter, r *http.Request) {
-	var params createUserParams
-	if !DecodeJSONBody(w, r, &params, 0) {
-		fmt.Println("returned here")
+	ctx := r.Context()
+	
+	var req CreateUserRequest
+	if !DecodeJSONBody(w, r, &req, 0) {
+		log.Error().Msg("failed to decode request body")
 		return
 	}
-	// Validation
-	if params.Email == "" || params.Password == "" {
-		RespondWithError(w, http.StatusBadRequest, "email and password are required", userService.ErrParamsMismatch)
+	
+	// Validate input
+	if err := validateCreateUserRequest(&req); err != nil {
+		var statusCode int
+		var serviceErr error
+		
+		switch err {
+		case ErrMissingFields:
+			statusCode = http.StatusBadRequest
+			serviceErr = userService.ErrParamsMismatch
+		case ErrInvalidEmail:
+			statusCode = http.StatusBadRequest
+			serviceErr = userService.ErrParamsMismatch
+		case ErrWeakPassword:
+			statusCode = http.StatusBadRequest
+			serviceErr = userService.ErrTooWeakPassword
+		default:
+			statusCode = http.StatusBadRequest
+			serviceErr = err
+		}
+		
+		RespondWithError(w, statusCode, err.Error(), serviceErr)
 		return
 	}
-	if len(params.Password) < 8 {
-		RespondWithError(w, http.StatusBadRequest, "password needs to be atleast 8 characters", userService.ErrTooWeakPassword)
-		return
-	}
-	exists, err := userService.CheckUserExists(r.Context(), params.Email)
-	if exists {
-		RespondWithError(w, http.StatusBadRequest, "User already exists", userService.ErrUserAlreadyExists)
-		return
-	}
+	
+	// Check if user already exists
+	exists, err := userService.CheckUserExists(ctx, req.Email)
 	if err != nil {
+		log.Error().Msgf("failed to check user existence %v", err)
 		RespondWithError(w, http.StatusInternalServerError, "Internal server error", err)
 		return
 	}
-	cleanedEmail := strings.TrimSpace(strings.ToLower(params.Email))
+	
+	if exists {
+		RespondWithError(w, http.StatusConflict, "User already exists", userService.ErrUserAlreadyExists)
+		return
+	}
+	
+	// Create user
 	createParams := userService.CreateUserParams{
-		Email:   cleanedEmail,
+		Email:   req.Email,
 		Name:    "",
 		Service: string(userService.GetServiceEnumName(userService.Email)),
 	}
-	user, err := userService.CreateUser(r.Context(), params.Password, createParams, userService.OauthCreate{})
+	
+	user, err := userService.CreateUser(ctx, req.Password, createParams, userService.OauthCreate{})
 	if err != nil {
-		RespondWithError(w, http.StatusBadRequest, fmt.Sprintf("error creating user: %v", err), err)
-	}
-	fmt.Println(user)
-	RespondWithJson(w, http.StatusOK, "created user")
-}
-
-func PostLoginHandler(w http.ResponseWriter, r *http.Request) {
-	params := loginParams{}
-	if !DecodeJSONBody(w, r, &params, 0) {
+		slog.Error("failed to create user", "error", err, "email", req.Email)
+		RespondWithError(w, http.StatusInternalServerError, "Failed to create user", err)
 		return
 	}
-	if params.Email == "" || params.Password == "" {
-		RespondWithError(w, http.StatusBadRequest, "no email or password provided", userService.ErrParamsMismatch)
-		return
-	}
-	user, err := db.Get().GetUserByEmail(r.Context(), params.Email)
-	if err == sql.ErrNoRows {
-		RespondWithError(w, http.StatusBadRequest, "user with this email does not exist", userService.ErrUserNotFound)
-		return
-	}
-	if err != nil {
-		RespondWithError(w, http.StatusInternalServerError, fmt.Sprintf("database error %v", err), err)
-		return
-	}
-	if user.Provider != string(userService.GetServiceEnumName(userService.Email)) {
-		RespondWithError(w, http.StatusBadRequest, "error logging with email. user created using different authentication method", userService.ErrIncorrectAuthType)
-		return
-	}
-	if !auth.CheckPasswordHash(params.Password, user.PasswordHash) {
-		RespondWithError(w, http.StatusBadRequest, "wrong password or email", userService.ErrWrongPassword)
-		return
-	}
-	token := auth.MakeToken(user.LookupID)
-
-	http.SetCookie(w, &http.Cookie{
-		HttpOnly: true,
-		Expires:  time.Now().Add(7 * 24 * time.Hour),
-		SameSite: http.SameSiteLaxMode,
-		// Uncomment below for HTTPS:
-		// Secure: true,
-		Path:  "/",
-		Name:  "jwt", // Must be named "jwt" or else the token cannot be searched for by jwtauth.Verifier.
-		Value: token,
+	
+	slog.Info("user created successfully", "userID", user.ID, "email", req.Email)
+	RespondWithJson(w, http.StatusCreated, map[string]string{
+		"message": "User created successfully",
+		"userID":  user.ID,
 	})
-	RespondWithJson(w, http.StatusOK, token)
 }
 
-func GetProfileHandler(w http.ResponseWriter, r *http.Request) {
-	user, err := auth.GetUserFromContext(r.Context())
-	if err != nil {
-		fmt.Println(err)
-		RespondWithError(w, 400, "error try again later", err)
+// PostLoginHandler handles user authentication
+func PostLoginHandler(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+	
+	var req LoginRequest
+	if !DecodeJSONBody(w, r, &req, 0) {
+		return
 	}
-	fmt.Println(user)
+	
+	// Validate input
+	if err := validateLoginRequest(&req); err != nil {
+		RespondWithError(w, http.StatusBadRequest, err.Error(), userService.ErrParamsMismatch)
+		return
+	}
+	
+	// Get user from database
+	dbUser, err := db.Get().GetUserByEmail(ctx, req.Email)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			// Don't reveal whether user exists or password is wrong for security
+			RespondWithError(w, http.StatusUnauthorized, "Invalid email or password", userService.ErrWrongPassword)
+			return
+		}
+		
+		log.Error().Msgf("database error during login %v", err)
+		RespondWithError(w, http.StatusInternalServerError, "Internal server error", err)
+		return
+	}
+	
+	// Check authentication provider
+	if dbUser.Provider != string(userService.GetServiceEnumName(userService.Email)) {
+		RespondWithError(w, http.StatusBadRequest, 
+			"Please use the authentication method you originally signed up with", 
+			userService.ErrIncorrectAuthType)
+		return
+	}
+	
+	// Verify password
+	if !auth.CheckPasswordHash(req.Password, dbUser.PasswordHash) {
+		// Log failed login attempt
+		slog.Warn("failed login attempt", "email", req.Email)
+		RespondWithError(w, http.StatusUnauthorized, "Invalid email or password", userService.ErrWrongPassword)
+		return
+	}
+	
+	// Generate JWT token
+	token := auth.MakeToken(dbUser.LookupID)
+	
+	// Set secure cookie
+	cookie := &http.Cookie{
+		Name:     "jwt",
+		Value:    token,
+		Path:     "/",
+		HttpOnly: true,
+		SameSite: http.SameSiteLaxMode,
+		Expires:  time.Now().Add(7 * 24 * time.Hour),
+		// Secure: true, // Enable in production with HTTPS
+	}
+	http.SetCookie(w, cookie)
+	
+	// Prepare response
+	user := &User{
+		ID:       dbUser.LookupID,
+		Email:    dbUser.Email,
+		Name:     dbUser.Name,
+		Provider: dbUser.Provider,
+	}
+	
+	response := LoginResponse{
+		Token: token,
+		User:  user,
+	}
+	
+	log.Info().Msgf("successful login %s %s", dbUser.LookupID, req.Email)
+	RespondWithJson(w, http.StatusOK, response)
+}
 
-	RespondWithJson(w, 200, user)
+// GetProfileHandler retrieves the authenticated user's profile
+func GetProfileHandler(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+	
+	user, err := auth.GetUserFromContext(ctx)
+	if err != nil {
+		slog.Error("failed to get user from context", "error", err)
+		RespondWithError(w, http.StatusUnauthorized, "Authentication required", err)
+		return
+	}
+	
+	slog.Info("profile accessed", "userID", user.ID)
+	RespondWithJson(w, http.StatusOK, user)
 }
