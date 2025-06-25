@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>QR Code Setup</title>
+    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
+</head>
+<body>
+<div class="container mt-5">
+    <div class="row justify-content-center">
+        <div class="col-md-6 text-center">
+            <h1 class="mb-3">Set Up Two-Factor Authentication</h1>
+            
+            <div class="mb-4">
+                <img src="data:image/png;base64,{{.QRCodeData}}" 
+                     class="img-fluid mb-3" 
+                     alt="QR Code for {{.Username}}"
+                     style="max-width: 200px;">
+            </div>
+
+            <div class="mb-3">
+                <h5>Manual Entry</h5>
+                <div class="card">
+                    <div class="card-body">
+                        <p><strong>Account:</strong> {{.Username}}</p>
+                        <p><strong>Secret Key:</strong></p>
+                        <code id="secret-key" class="user-select-all" style="word-break: break-all;">{{.Secret}}</code>
+                        <button type="button" class="btn btn-sm btn-outline-secondary ml-2" onclick="copySecret()">Copy</button>
+                    </div>
+                </div>
+                <small class="text-muted mt-2 d-block">Enter this in your authenticator app if you can't scan the QR code</small>
+            </div>
+
+            <form action="/two/validate-otp" method="get">
+                <input type="hidden" name="username" value="{{.Username}}">
+                <button type="submit" class="btn btn-primary btn-lg">I've Set Up My Authenticator</button>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script>
+function copySecret() {
+    const secretElement = document.getElementById('secret-key');
+    const text = secretElement.textContent;
+    
+    if (navigator.clipboard) {
+        navigator.clipboard.writeText(text).then(function() {
+            const button = event.target;
+            const originalText = button.textContent;
+            button.textContent = 'Copied!';
+            button.classList.remove('btn-outline-secondary');
+            button.classList.add('btn-success');
+            
+            setTimeout(function() {
+                button.textContent = originalText;
+                button.classList.remove('btn-success');
+                button.classList.add('btn-outline-secondary');
+            }, 2000);
+        }).catch(function(err) {
+            console.error('Could not copy text: ', err);
+            alert('Please manually copy the secret key');
+        });
+    } else {
+        // Fallback for older browsers
+        const textArea = document.createElement('textarea');
+        textArea.value = text;
+        document.body.appendChild(textArea);
+        textArea.select();
+        try {
+            document.execCommand('copy');
+            alert('Secret copied to clipboard!');
+        } catch (err) {
+            alert('Please manually copy the secret key');
+        }
+        document.body.removeChild(textArea);
+    }
+}
+</script>
+</body>
+</html>

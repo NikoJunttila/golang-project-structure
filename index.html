@@ -1,0 +1,331 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Authentication Test Page</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+        }
+        h1, h2 {
+            color: #333;
+            border-bottom: 2px solid #007bff;
+            padding-bottom: 10px;
+        }
+        .form-group {
+            margin-bottom: 15px;
+        }
+        label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+            color: #555;
+        }
+        input[type="email"], input[type="password"] {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            font-size: 16px;
+            box-sizing: border-box;
+        }
+        button {
+            background-color: #007bff;
+            color: white;
+            padding: 12px 24px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 16px;
+            margin-right: 10px;
+        }
+        button:hover {
+            background-color: #0056b3;
+        }
+        .response {
+            margin-top: 15px;
+            padding: 10px;
+            border-radius: 5px;
+            min-height: 20px;
+        }
+        .success {
+            background-color: #d4edda;
+            border: 1px solid #c3e6cb;
+            color: #155724;
+        }
+        .error {
+            background-color: #f8d7da;
+            border: 1px solid #f5c6cb;
+            color: #721c24;
+        }
+        .info {
+            background-color: #e2e3e5;
+            border: 1px solid #d6d8db;
+            color: #383d41;
+        }
+        pre {
+            background-color: #f8f9fa;
+            padding: 10px;
+            border-radius: 5px;
+            overflow-x: auto;
+            white-space: pre-wrap;
+        }
+        .hidden {
+            display: none;
+        }
+    </style>
+</head>
+<body>
+    <h1>Authentication Handler Test Page</h1>
+    
+    <!-- User Registration Section -->
+    <div class="container">
+        <h2>Create User (Email)</h2>
+        <form id="registerForm">
+            <div class="form-group">
+                <label for="registerEmail">Email:</label>
+                <input type="email" id="registerEmail" required>
+            </div>
+            <div class="form-group">
+                <label for="registerPassword">Password:</label>
+                <input type="password" id="registerPassword" required>
+            </div>
+            <button type="submit">Create User</button>
+        </form>
+        <div id="registerResponse" class="response"></div>
+    </div>
+
+    <!-- User Login Section -->
+    <div class="container">
+        <h2>Login (Email)</h2>
+        <form id="loginForm">
+            <div class="form-group">
+                <label for="loginEmail">Email:</label>
+                <input type="email" id="loginEmail" required>
+            </div>
+            <div class="form-group">
+                <label for="loginPassword">Password:</label>
+                <input type="password" id="loginPassword" required>
+            </div>
+            <button type="submit">Login</button>
+        </form>
+        <div id="loginResponse" class="response"></div>
+    </div>
+
+    <!-- OAuth Login Section -->
+    <div class="container">
+        <h2>OAuth Login</h2>
+        <button id="googleLoginBtn" style="background-color: #db4437;">Login with Google</button>
+        <div id="oauthResponse" class="response"></div>
+    </div>
+
+    <!-- Profile Access Section -->
+    <div class="container">
+        <h2>Get Profile (Authenticated)</h2>
+        <button id="getProfileBtn">Get Profile</button>
+        <button id="logoutBtn">Logout</button>
+        <div id="profileResponse" class="response"></div>
+    </div>
+
+    <!-- Current Token Display -->
+    <div class="container">
+        <h2>Current Authentication Status</h2>
+        <div id="authStatus" class="info">Not authenticated</div>
+    </div>
+
+    <script>
+        let currentToken = null;
+
+        // Helper function to display responses
+        function displayResponse(elementId, data, isError = false) {
+            const element = document.getElementById(elementId);
+            element.className = isError ? 'response error' : 'response success';
+            
+            if (typeof data === 'object') {
+                element.innerHTML = '<pre>' + JSON.stringify(data, null, 2) + '</pre>';
+            } else {
+                element.textContent = data;
+            }
+        }
+
+        // Helper function to get URL parameters
+        function getUrlParams() {
+            const params = {};
+            const urlSearchParams = new URLSearchParams(window.location.search);
+            for (const [key, value] of urlSearchParams) {
+                params[key] = value;
+            }
+            return params;
+        }
+
+        // Helper function to clear URL parameters without page reload
+        function clearUrlParams() {
+            const url = new URL(window.location);
+            url.search = '';
+            window.history.replaceState({}, document.title, url);
+        }
+
+        // Helper function to make API calls
+        async function makeRequest(url, options = {}) {
+            try {
+                const response = await fetch(url, {
+                    credentials: 'include', // Include cookies
+                    ...options,
+                    headers: {
+                        'Content-Type': 'application/json',
+                        ...options.headers
+                    }
+                });
+
+                const responseData = await response.json().catch(() => ({}));
+                
+                return {
+                    ok: response.ok,
+                    status: response.status,
+                    data: responseData
+                };
+            } catch (error) {
+                return {
+                    ok: false,
+                    status: 0,
+                    data: { error: error.message }
+                };
+            }
+        }
+
+        // Update auth status display
+        function updateAuthStatus() {
+            const statusElement = document.getElementById('authStatus');
+            if (currentToken) {
+                if (currentToken === 'oauth-authenticated') {
+                    statusElement.innerHTML = `<strong>Authenticated via OAuth</strong>`;
+                } else {
+                    statusElement.innerHTML = `<strong>Authenticated</strong><br>Token: ${currentToken.substring(0, 20)}...`;
+                }
+                statusElement.className = 'response success';
+            } else {
+                statusElement.textContent = 'Not authenticated';
+                statusElement.className = 'response info';
+            }
+        }
+
+        // Register form handler
+        document.getElementById('registerForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            const email = document.getElementById('registerEmail').value;
+            const password = document.getElementById('registerPassword').value;
+            
+            const result = await makeRequest('/public/email_create', {
+                method: 'POST',
+                body: JSON.stringify({ email, password })
+            });
+            
+            displayResponse('registerResponse', result.data, !result.ok);
+        });
+
+        // Login form handler
+        document.getElementById('loginForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            const email = document.getElementById('loginEmail').value;
+            const password = document.getElementById('loginPassword').value;
+            
+            const result = await makeRequest('/public/email_login', {
+                method: 'POST',
+                body: JSON.stringify({ email, password })
+            });
+            
+            if (result.ok && result.data.token) {
+                currentToken = result.data.token;
+                updateAuthStatus();
+            }
+            
+            displayResponse('loginResponse', result.data, !result.ok);
+        });
+
+        // Google OAuth login handler
+        document.getElementById('googleLoginBtn').addEventListener('click', () => {
+            // Redirect to Google OAuth begin endpoint
+            window.location.href = '/public/google/begin';
+        });
+
+        // Check for OAuth callback parameters on page load
+        function handleOAuthCallback() {
+            const params = getUrlParams();
+            
+            // Check if we have OAuth callback parameters
+            if (Object.keys(params).length > 0) {
+                displayResponse('oauthResponse', {
+                    message: 'OAuth callback received',
+                    parameters: params
+                });
+
+                // Try to get profile immediately after OAuth callback
+                // This assumes the OAuth callback sets the authentication cookie
+                setTimeout(async () => {
+                    const result = await makeRequest('/auth/profile', {
+                        method: 'GET'
+                    });
+                    
+                    if (result.ok) {
+                        displayResponse('profileResponse', {
+                            message: 'Automatically fetched profile after OAuth login',
+                            profile: result.data
+                        });
+                        currentToken = 'oauth-authenticated'; // Placeholder since we don't get token directly
+                        updateAuthStatus();
+                    } else {
+                        displayResponse('oauthResponse', {
+                            message: 'OAuth callback received but profile fetch failed',
+                            parameters: params,
+                            profileError: result.data
+                        }, true);
+                    }
+                }, 1000); // Wait 1 second for cookie to be properly set
+
+                // Clear URL parameters after handling
+                clearUrlParams();
+            }
+        }
+        document.getElementById('getProfileBtn').addEventListener('click', async () => {
+            const result = await makeRequest('/auth/profile', {
+                method: 'GET'
+            });
+            
+            displayResponse('profileResponse', result.data, !result.ok);
+        });
+
+        // Logout handler
+        document.getElementById('logoutBtn').addEventListener('click', () => {
+            // Clear the JWT cookie by setting it to expire
+            document.cookie = 'jwt=; Path=/; Expires=Thu, 01 Jan 1970 00:00:01 GMT;';
+            currentToken = null;
+            updateAuthStatus();
+            displayResponse('profileResponse', 'Logged out successfully');
+        });
+
+        // Initialize auth status and check for OAuth callback
+        updateAuthStatus();
+        handleOAuthCallback();
+
+        // Auto-fill forms for testing (remove in production)
+        document.getElementById('registerEmail').value = 'test@example.com';
+        document.getElementById('registerPassword').value = 'testpassword123';
+        document.getElementById('loginEmail').value = 'test@example.com';
+        document.getElementById('loginPassword').value = 'testpassword123';
+    </script>
+</body>
+</html>

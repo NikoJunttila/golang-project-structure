@@ -61,7 +61,7 @@ func GetAuthCallBack(w http.ResponseWriter, r *http.Request) {
 	})
 
 	fmt.Printf("User authenticated: %+v\n", user)
-	http.Redirect(w, r, "http://localhost:5173", http.StatusFound)
+	http.Redirect(w, r, "http://localhost:3000/", http.StatusFound)
 }
 func GetBeginAuth(w http.ResponseWriter, r *http.Request) {
 	//client just needs to have this function
