@@ -4,6 +4,7 @@
      lookup_id TEXT NOT NULL,
      email TEXT UNIQUE NOT NULL,
      password_hash TEXT NOT NULL, -- "" for OAuth-only users
+     secret TEXT NOT NULL DEFAULT '', -- twofactor secret
      name TEXT NOT NULL,
      avatar_url TEXT NOT NULL DEFAULT '',
      provider TEXT NOT NULL DEFAULT 'local', -- 'local', 'google'

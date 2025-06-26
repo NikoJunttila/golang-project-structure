@@ -14,7 +14,7 @@
             <div class="mb-4">
                 <img src="data:image/png;base64,{{.QRCodeData}}" 
                      class="img-fluid mb-3" 
-                     alt="QR Code for {{.Username}}"
+                     alt="QR Code for {{.Email}}"
                      style="max-width: 200px;">
             </div>
 
@@ -22,7 +22,7 @@
                 <h5>Manual Entry</h5>
                 <div class="card">
                     <div class="card-body">
-                        <p><strong>Account:</strong> {{.Username}}</p>
+                        <p><strong>Account:</strong> {{.Email}}</p>
                         <p><strong>Secret Key:</strong></p>
                         <code id="secret-key" class="user-select-all" style="word-break: break-all;">{{.Secret}}</code>
                         <button type="button" class="btn btn-sm btn-outline-secondary ml-2" onclick="copySecret()">Copy</button>
@@ -32,7 +32,7 @@
             </div>
 
             <form action="/two/validate-otp" method="get">
-                <input type="hidden" name="username" value="{{.Username}}">
+                <input type="hidden" name="email" value="{{.Email}}">
                 <button type="submit" class="btn btn-primary btn-lg">I've Set Up My Authenticator</button>
             </form>
         </div>

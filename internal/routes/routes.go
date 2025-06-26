@@ -25,6 +25,9 @@ func InitializeRoutes(r *chi.Mux) {
 	})
 
 	r.Route("/two", func(r chi.Router) {
+		//without these we cant find jwt from context
+        r.Use(jwtauth.Verifier(auth.GetTokenAuth()))
+        r.Use(jwtauth.Authenticator(auth.GetTokenAuth()))
 		registerTwoFactorRoutes(r)
 	})
 

@@ -49,3 +49,6 @@ RETURNING *;
 -- name: DeleteUser :exec
 DELETE FROM users
 WHERE id = ?;
+
+-- name: UpdateUserSecret :exec
+UPDATE users SET secret = ? WHERE id = ?;

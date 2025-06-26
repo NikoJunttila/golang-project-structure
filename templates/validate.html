@@ -9,7 +9,7 @@
 <div class="container mt-5">
     <h1 class="mb-3">Enter OTP</h1>
     <form action="/two/validate-otp" method="post" class="needs-validation">
-        <input type="hidden" name="username" value="{{.Username}}">
+        <input type="hidden" name="email" value="{{.Email}}">
         <div class="form-group">
             <label for="otpCode">OTP Code:</label>
             <input type="text" id="otpCode" name="otpCode" class="form-control" required>

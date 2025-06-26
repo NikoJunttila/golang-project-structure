@@ -150,21 +150,16 @@ func PostCreateUserHandlerEmail(w http.ResponseWriter, r *http.Request) {
 
 // PostLoginHandler handles user authentication
 func PostLoginHandler(w http.ResponseWriter, r *http.Request) {
-	ctx := r.Context()
-	
 	var req LoginRequest
 	if !DecodeJSONBody(w, r, &req, 0) {
 		return
 	}
-	
 	// Validate input
 	if err := validateLoginRequest(&req); err != nil {
 		RespondWithError(w, http.StatusBadRequest, err.Error(), userService.ErrParamsMismatch)
 		return
 	}
-	
-	// Get user from database
-	dbUser, err := db.Get().GetUserByEmail(ctx, req.Email)
+	dbUser, err := db.Get().GetUserByEmail(r.Context(), req.Email)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			// Don't reveal whether user exists or password is wrong for security
@@ -176,18 +171,13 @@ func PostLoginHandler(w http.ResponseWriter, r *http.Request) {
 		RespondWithError(w, http.StatusInternalServerError, "Internal server error", err)
 		return
 	}
-	
-	// Check authentication provider
 	if dbUser.Provider != string(userService.GetServiceEnumName(userService.Email)) {
 		RespondWithError(w, http.StatusBadRequest, 
 			"Please use the authentication method you originally signed up with", 
 			userService.ErrIncorrectAuthType)
 		return
 	}
-	
-	// Verify password
 	if !auth.CheckPasswordHash(req.Password, dbUser.PasswordHash) {
-		// Log failed login attempt
 		slog.Warn("failed login attempt", "email", req.Email)
 		RespondWithError(w, http.StatusUnauthorized, "Invalid email or password", userService.ErrWrongPassword)
 		return
@@ -208,7 +198,6 @@ func PostLoginHandler(w http.ResponseWriter, r *http.Request) {
 	}
 	http.SetCookie(w, cookie)
 	
-	// Prepare response
 	user := &User{
 		ID:       dbUser.LookupID,
 		Email:    dbUser.Email,
@@ -227,9 +216,7 @@ func PostLoginHandler(w http.ResponseWriter, r *http.Request) {
 
 // GetProfileHandler retrieves the authenticated user's profile
 func GetProfileHandler(w http.ResponseWriter, r *http.Request) {
-	ctx := r.Context()
-	
-	user, err := auth.GetUserFromContext(ctx)
+	user, err := auth.GetUserFromContext(r.Context())
 	if err != nil {
 		slog.Error("failed to get user from context", "error", err)
 		RespondWithError(w, http.StatusUnauthorized, "Authentication required", err)

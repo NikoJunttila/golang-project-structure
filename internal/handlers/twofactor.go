@@ -2,8 +2,17 @@ package handlers
 
 import (
 	"bytes"
+	"database/sql"
 	"encoding/base64"
+	"errors"
 	"fmt"
+	"github.com/nikojunttila/community/internal/auth"
+	"github.com/nikojunttila/community/internal/db"
+	userService "github.com/nikojunttila/community/internal/services/user"
+	"github.com/pquerna/otp/totp"
+	"github.com/rs/zerolog/log"
+	"github.com/yeqown/go-qrcode/v2"
+	"github.com/yeqown/go-qrcode/writer/standard"
 	"html/template"
 	"image/color"
 	"io"
@@ -11,11 +20,6 @@ import (
 	"net/url"
 	"strings"
 	"time"
-
-	"github.com/pquerna/otp/totp"
-	"github.com/rs/zerolog/log"
-	"github.com/yeqown/go-qrcode/v2"
-	"github.com/yeqown/go-qrcode/writer/standard"
 )
 
 var templates = template.Must(template.ParseGlob("templates/*.html"))
@@ -50,34 +54,61 @@ func LoginHandler(w http.ResponseWriter, r *http.Request) {
 		}
 		return
 	}
-
 	if err := r.ParseForm(); err != nil {
 		log.Error().Msgf("Form parse error: %v", err)
 		http.Error(w, "Error parsing form", http.StatusBadRequest)
 		return
 	}
 
-	username := strings.TrimSpace(r.Form.Get("username"))
+	email := strings.TrimSpace(r.Form.Get("email"))
 	password := r.Form.Get("password")
 
-	// Validate input
-	if username == "" || password == "" {
+	if email == "" || password == "" {
 		http.Redirect(w, r, "/two/login", http.StatusFound)
 		return
 	}
+	user, err := db.Get().GetUserByEmail(r.Context(), email)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			// Don't reveal whether user exists or password is wrong for security
+			RespondWithError(w, http.StatusUnauthorized, "Invalid email or password", userService.ErrWrongPassword)
+			return
+		}
 
-	user, ok := users[username]
-	if !ok || user.Password != password {
-		http.Redirect(w, r, "/two/login", http.StatusFound)
+		log.Error().Msgf("database error during login %v", err)
+		RespondWithError(w, http.StatusInternalServerError, "Internal server error", err)
 		return
 	}
+	if user.Provider != string(userService.GetServiceEnumName(userService.Email)) {
+		RespondWithError(w, http.StatusBadRequest,
+			"Please use the authentication method you originally signed up with",
+			userService.ErrIncorrectAuthType)
+		return
+	}
+	if !auth.CheckPasswordHash(password, user.PasswordHash) {
+		log.Warn().Msgf("failed login attempt %s", email)
+		RespondWithError(w, http.StatusUnauthorized, "Invalid email or password", userService.ErrWrongPassword)
+		return
+	}
+	// Generate JWT token
+	token := auth.MakeToken(user.LookupID)
+	// Set secure cookie
+	cookie := &http.Cookie{
+		Name:     "jwt",
+		Value:    token,
+		Path:     "/",
+		HttpOnly: true,
+		SameSite: http.SameSiteLaxMode,
+		Expires:  time.Now().Add(7 * 24 * time.Hour),
+		// Secure: true, // Enable in production with HTTPS
+	}
+	http.SetCookie(w, cookie)
 
 	if user.Secret == "" {
-		http.Redirect(w, r, "/two/generate-otp?username="+url.QueryEscape(username), http.StatusFound)
+		http.Redirect(w, r, "/two/generate-otp?email="+url.QueryEscape(email), http.StatusFound)
 		return
 	}
-
-	err := templates.ExecuteTemplate(w, "validate.html", struct{ Username string }{Username: username})
+	err = templates.ExecuteTemplate(w, "validate.html", struct{ Email string }{Email: email})
 	if err != nil {
 		log.Error().Msgf("Template error: %v", err)
 		http.Error(w, "Internal Server Error", http.StatusInternalServerError)
@@ -85,57 +116,52 @@ func LoginHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func GetGenerateOTPHandler(w http.ResponseWriter, r *http.Request) {
-	username := strings.TrimSpace(r.URL.Query().Get("username"))
-	if username == "" {
-		http.Redirect(w, r, "/two", http.StatusFound)
+	user, err := auth.GetUserFromContext(r.Context())
+	if err != nil {
+		http.Redirect(w, r, "/two/login", http.StatusFound)
 		return
 	}
-
-	user, ok := users[username]
-	if !ok {
-		http.Redirect(w, r, "/two", http.StatusFound)
-		return
-	}
-
-	// CRITICAL FIX: Only generate the secret once and save it properly
 	if user.Secret == "" {
 		secret, err := totp.Generate(totp.GenerateOpts{
 			Issuer:      "Go2FADemo",
-			AccountName: username,
+			AccountName: user.Email,
 		})
 		if err != nil {
-			log.Error().Msgf("Failed to generate TOTP secret for %s: %v", username, err)
+			log.Error().Msgf("Failed to generate TOTP secret for %s: %v", user.Email, err)
 			http.Error(w, "Failed to generate TOTP secret.", http.StatusInternalServerError)
 			return
 		}
-
-		// CRITICAL: Use the Base32-encoded secret string, not raw bytes
-		// And modify the original user in the map, not a copy
-		users[username].Secret = secret.Secret()
-
-		log.Info().Msgf("Generated TOTP secret for user %s: %s", username, secret.Secret())
+		log.Info().Msgf("Generated TOTP secret for user %s: %s", user.Email, secret.Secret())
+		user.Secret = secret.Secret()
+		if err := db.Get().UpdateUserSecret(r.Context(), db.UpdateUserSecretParams{
+			Secret: secret.Secret(),
+			ID:     user.ID,
+		}); err != nil {
+			log.Error().Msgf("Failed to update secret for %s: %v", user.Email, err)
+			http.Error(w, "Failed to update secret.", http.StatusInternalServerError)
+		}
 	}
 
 	// Build the OTP URL
 	otpURL := fmt.Sprintf("otpauth://totp/Go2FADemo:%s?secret=%s&issuer=Go2FADemo",
-		url.QueryEscape(username),
+		url.QueryEscape(user.Email),
 		user.Secret)
 
 	qrCodeBase64, err := generateQRCodeBase64(otpURL)
 	if err != nil {
-		log.Error().Msgf("Failed to generate QR code for user %s: %v", username, err)
+		log.Error().Msgf("Failed to generate QR code for user %s: %v", user.Email, err)
 		http.Error(w, "Failed to generate QR code", http.StatusInternalServerError)
 		return
 	}
 
 	data := struct {
 		OTPURL     string
-		Username   string
+		Email      string
 		Secret     string
 		QRCodeData string
 	}{
 		OTPURL:     otpURL,
-		Username:   username,
+		Email:      user.Email,
 		Secret:     user.Secret,
 		QRCodeData: qrCodeBase64,
 	}
@@ -150,13 +176,12 @@ func GetGenerateOTPHandler(w http.ResponseWriter, r *http.Request) {
 func ValidateOTPHandler(w http.ResponseWriter, r *http.Request) {
 	switch r.Method {
 	case "GET":
-		username := strings.TrimSpace(r.URL.Query().Get("username"))
-		if username == "" {
+		user, err := auth.GetUserFromContext(r.Context())
+		if err != nil {
 			http.Redirect(w, r, "/two/login", http.StatusFound)
 			return
 		}
-
-		err := templates.ExecuteTemplate(w, "validate.html", struct{ Username string }{Username: username})
+		err = templates.ExecuteTemplate(w, "validate.html", struct{ Email string }{Email: user.Email})
 		if err != nil {
 			log.Error().Msgf("Template error: %v", err)
 			http.Error(w, "Internal Server Error", http.StatusInternalServerError)
@@ -169,48 +194,43 @@ func ValidateOTPHandler(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
-		username := strings.TrimSpace(r.FormValue("username"))
+		email := strings.TrimSpace(r.FormValue("email"))
 		otpCode := strings.TrimSpace(r.FormValue("otpCode"))
 		otpCode = strings.ReplaceAll(otpCode, " ", "")
 
 		// Validate input
-		if username == "" || otpCode == "" {
+		if email == "" || otpCode == "" {
 			http.Redirect(w, r, "/two/login", http.StatusFound)
 			return
 		}
 
-		user, exists := users[username]
-		if !exists || user.Secret == "" {
-			log.Error().Msgf("User %s does not exist or has no secret", username)
+		user, err := auth.GetUserFromContext(r.Context())
+		if err != nil || user.Secret == "" {
+			log.Error().Msgf("User %s does not exist or has no secret", user.Email)
 			http.Redirect(w, r, "/two/login", http.StatusFound)
 			return
 		}
-
 		// CRITICAL: Debug logging to help troubleshoot
-		log.Info().Msgf("Validating TOTP for user %s with code %s and secret %s", username, otpCode, user.Secret)
-
+		log.Info().Msgf("Validating TOTP for user %s with code %s and secret %s", email, otpCode, user.Secret)
 		// Validate the TOTP code
 		isValid := totp.Validate(otpCode, user.Secret)
 		if !isValid {
-			log.Warn().Msgf("Invalid TOTP code for user %s: provided=%s", username, otpCode)
+			log.Warn().Msgf("Invalid TOTP code for user %s: provided=%s", email, otpCode)
 
 			// Redirect back to validation page with error
-			http.Redirect(w, r, fmt.Sprintf("/two/validate-otp?username=%s&error=invalid", url.QueryEscape(username)), http.StatusTemporaryRedirect)
+			http.Redirect(w, r, fmt.Sprintf("/two/validate-otp?username=%s&error=invalid", url.QueryEscape(email)), http.StatusTemporaryRedirect)
 			return
 		}
-
-		log.Info().Msgf("TOTP validation successful for user %s", username)
-
+		log.Info().Msgf("TOTP validation successful for user %s", email)
 		// Set session cookie
 		http.SetCookie(w, &http.Cookie{
 			Name:     "authenticatedUser",
-			Value:    username, // Store username instead of just "true"
+			Value:    email, // Store username instead of just "true"
 			Path:     "/",
 			MaxAge:   3600,
 			HttpOnly: true,  // Security improvement
 			Secure:   false, // Set to true in production with HTTPS
 		})
-
 		http.Redirect(w, r, "/two/dashboard", http.StatusSeeOther)
 
 	default:
@@ -224,7 +244,6 @@ func GetDashboardHandler(w http.ResponseWriter, r *http.Request) {
 		http.Redirect(w, r, "/", http.StatusFound)
 		return
 	}
-
 	// You can now use cookie.Value as the username if needed
 	err = templates.ExecuteTemplate(w, "dashboard.html", struct{ Username string }{Username: cookie.Value})
 	if err != nil {
