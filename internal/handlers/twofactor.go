@@ -33,17 +33,6 @@ func GetHomeHandler(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-type user struct {
-	Username string
-	Password string
-	Secret   string
-}
-
-// Simple in-memory "database" for demonstration purposes
-var users = map[string]*user{
-	"john": {Username: "john", Password: "password", Secret: ""},
-}
-
 func LoginHandler(w http.ResponseWriter, r *http.Request) {
 	if r.Method == "GET" {
 		err := templates.ExecuteTemplate(w, "login.html", nil)
@@ -249,26 +238,6 @@ func GetDashboardHandler(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		log.Error().Msgf("Template error: %v", err)
 		http.Error(w, "Internal Server Error", http.StatusInternalServerError)
-	}
-}
-func DebugHandler(w http.ResponseWriter, r *http.Request) {
-	username := r.URL.Query().Get("username")
-	user, ok := users[username]
-	if !ok {
-		http.Error(w, "User not found", http.StatusNotFound)
-		return
-	}
-
-	fmt.Fprintf(w, "Username: %s\n", username)
-	fmt.Fprintf(w, "Secret: %s\n", user.Secret)
-	fmt.Fprintf(w, "Secret Length: %d\n", len(user.Secret))
-
-	// Generate current TOTP for comparison
-	code, err := totp.GenerateCode(user.Secret, time.Now())
-	if err != nil {
-		fmt.Fprintf(w, "Error generating code: %v\n", err)
-	} else {
-		fmt.Fprintf(w, "Current TOTP: %s\n", code)
 	}
 }
 

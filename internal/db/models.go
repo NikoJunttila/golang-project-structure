@@ -9,6 +9,25 @@ import (
 	"time"
 )
 
+type AdminAuditLog struct {
+	ID             int64
+	AdminUserID    string
+	AdminEmail     string
+	TargetUserID   string
+	Action         string
+	Resource       string
+	Method         string
+	Path           string
+	QueryParams    string
+	RequestBody    string
+	IpAddress      string
+	UserAgent      string
+	StatusCode     int64
+	ResponseTimeMs int64
+	Timestamp      interface{}
+	RequestID      string
+}
+
 type Foo struct {
 	ID        int64
 	Message   string

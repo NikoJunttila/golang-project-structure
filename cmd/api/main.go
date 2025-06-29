@@ -2,8 +2,9 @@ package main
 
 import (
 	"fmt"
-	"log"
 	"net/http"
+	"os"
+	"io"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/cors"
@@ -14,11 +15,28 @@ import (
 	customMW "github.com/nikojunttila/community/internal/middleware"
 	"github.com/nikojunttila/community/internal/routes"
 	"github.com/nikojunttila/community/internal/util"
+	"github.com/rs/zerolog"
+	"github.com/rs/zerolog/log"
+	"gopkg.in/natefinch/lumberjack.v2"
 )
+// This function creates the dedicated logger for requests
+func createRequestLogger() zerolog.Logger {
+	requestLogFile := &lumberjack.Logger{
+		Filename: "logs/requests.log",
+		MaxSize:  10,
+		Compress: true,
+	}
+	consoleWriter := zerolog.ConsoleWriter{
+		Out:        os.Stdout,
+		TimeFormat: "2006-01-02 15:04:05",
+	}
+	multi := io.MultiWriter(requestLogFile, consoleWriter)
+	return zerolog.New(multi).With().Timestamp().Logger()
+}
 
 func main() {
 	if err := godotenv.Load(); err != nil {
-		log.Fatal("Error loading .env file:", err)
+		log.Fatal().Err(err).Msg("Error loading .env file:")
 	}
 	logger.LoggerSetup()
 	db.InitDefault()
@@ -32,10 +50,11 @@ func main() {
 		AllowCredentials: true,
 		MaxAge:           300,
 	}))
-	customMW.InitializeMiddleware(r)
+	requestLogger := createRequestLogger()
+	customMW.InitializeMiddleware(r, requestLogger)
 	routes.InitializeRoutes(r)
 	portAddr := fmt.Sprintf(":%s", util.GetEnv("PORT"))
-	fmt.Println("listening at ", portAddr)
+	log.Info().Msgf("Listening at: %s", portAddr)
 	err := http.ListenAndServe(portAddr, r)
-	log.Fatalln("wtf??? ", err)
+	log.Fatal().Err(err).Msg("???")
 }
