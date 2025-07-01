@@ -1,4 +1,4 @@
-package customMiddleware
+package middleware
 
 import (
 	"bytes"
@@ -72,7 +72,7 @@ func AdminAuditMiddleware() func(http.Handler) http.Handler {
 			// Get admin user from context (should be available after JWT middleware)
 			admin, err := auth.GetUserFromContext(r.Context())
 			if err != nil {
-				logger.Error(err,"Failed to get admin user for audit log")
+				logger.Error(r.Context(),err,"Failed to get admin user for audit log")
 				next.ServeHTTP(w, r)
 				return
 			}
@@ -104,7 +104,7 @@ func AdminAuditMiddleware() func(http.Handler) http.Handler {
 					Path:           r.URL.Path,
 					QueryParams:    r.URL.RawQuery,
 					RequestBody:    requestBody,
-					IPAddress:      getClientIP(r),
+					IPAddress:      r.RemoteAddr,
 					UserAgent:      r.UserAgent(),
 					StatusCode:     auditWriter.statusCode,
 					ResponseTimeMs: responseTime.Milliseconds(),
@@ -112,7 +112,7 @@ func AdminAuditMiddleware() func(http.Handler) http.Handler {
 					RequestID:      requestID,
 				})
 				if err != nil {
-					logger.Error(err,"Failed to log admin audit")
+					logger.Error(ctx, err,"Failed to log admin audit")
 				}
 			}()
 		})
@@ -206,7 +206,7 @@ func extractTargetUserID(r *http.Request, requestBody string) string {
 
 	// Try to parse from JSON body
 	if requestBody != "" {
-		var bodyMap map[string]interface{}
+		var bodyMap map[string]any
 		if err := json.Unmarshal([]byte(requestBody), &bodyMap); err == nil {
 			if userID, ok := bodyMap["user_id"].(string); ok {
 				return userID
@@ -219,28 +219,7 @@ func extractTargetUserID(r *http.Request, requestBody string) string {
 			}
 		}
 	}
-
 	return "unknown"
-}
-
-// getClientIP extracts the real client IP address
-func getClientIP(r *http.Request) string {
-	// Check X-Forwarded-For header (most common)
-	xForwardedFor := r.Header.Get("X-Forwarded-For")
-	if xForwardedFor != "" {
-		// X-Forwarded-For can contain multiple IPs, take the first one
-		ips := strings.Split(xForwardedFor, ",")
-		return strings.TrimSpace(ips[0])
-	}
-
-	// Check X-Real-IP header
-	xRealIP := r.Header.Get("X-Real-IP")
-	if xRealIP != "" {
-		return xRealIP
-	}
-
-	// Fall back to RemoteAddr
-	return r.RemoteAddr
 }
 
 // generateShortID generates a short random ID for request tracking

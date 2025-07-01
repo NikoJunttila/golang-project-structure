@@ -9,26 +9,30 @@ import (
 	"github.com/go-chi/jwtauth/v5"
 	"github.com/nikojunttila/community/internal/auth"
 	"github.com/nikojunttila/community/internal/handlers"
-	customMW "github.com/nikojunttila/community/internal/middleware"
+	"github.com/nikojunttila/community/internal/middleware"
 )
 
 func InitializeRoutes(r *chi.Mux) {
 	// Group for authenticated (non-public) routes
 	workDir, _ := os.Getwd()
-
 	filesDir := http.Dir(filepath.Join(workDir, "static"))
 	FileServer(r, "/files", filesDir) //files/index.html servers file
 
 	r.Get("/", func(w http.ResponseWriter, r *http.Request) {
 		http.ServeFile(w, r, "index.html")
 	})
+	r.Route("/user", func(r chi.Router){
+		r.Use(middleware.RequireRoles(auth.User,auth.Admin))
+	  r.Get("/foo", handlers.GetFooHandler)
+	})
 
 	r.Route("/admin", func(r chi.Router) {
 		//log access to database for later identification on important endpoints
 		r.Use(jwtauth.Verifier(auth.GetTokenAuth()))
 		r.Use(jwtauth.Authenticator(auth.GetTokenAuth()))
+		r.Use(middleware.RequireRoles(auth.Admin))
 
-    r.Use(customMW.AdminAuditMiddleware())
+    r.Use(middleware.AdminAuditMiddleware())
 		registerAdminRoutes(r)
 	})
 

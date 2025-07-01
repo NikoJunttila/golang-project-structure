@@ -8,28 +8,30 @@ import (
 	"github.com/markbates/goth/gothic"
 	"github.com/nikojunttila/community/internal/auth"
 	"github.com/nikojunttila/community/internal/db"
+	"github.com/nikojunttila/community/internal/logger"
 	userService "github.com/nikojunttila/community/internal/services/user"
 )
 
 func GetAuthCallBack(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
 	userInfo, err := gothic.CompleteUserAuth(w, r)
 	if err != nil {
 		// Check if session exists
 		session, _ := gothic.Store.Get(r, "gothic_session")
 		fmt.Printf("Session values: %+v\n", session.Values)
-		RespondWithError(w, http.StatusInternalServerError, "Failed to complete user auth", err)
+		RespondWithError(w,ctx ,http.StatusInternalServerError, "Failed to complete user auth", err)
 		return
 	}
 	exists, err := userService.CheckUserExists(r.Context(), userInfo.Email)
 	if err != nil {
-		RespondWithError(w, http.StatusInternalServerError, "Internal server error", err)
+		RespondWithError(w,ctx, http.StatusInternalServerError, "Internal server error", err)
 		return
 	}
 	var user db.User
 	if exists {
 		user, err = db.Get().GetUserByEmail(r.Context(), userInfo.Email)
 		if err != nil {
-			RespondWithError(w, http.StatusInternalServerError, "Internal server error", err)
+			RespondWithError(w,ctx, http.StatusInternalServerError, "Internal server error", err)
 		}
 	} else {
 		user, err = userService.CreateUser(r.Context(), "", userService.CreateUserParams{
@@ -43,11 +45,11 @@ func GetAuthCallBack(w http.ResponseWriter, r *http.Request) {
 			ProviderID:    userInfo.UserID,
 		})
 		if err != nil {
-			http.Error(w, "Failed to create user", http.StatusInternalServerError)
+			RespondWithError(w, ctx, http.StatusInternalServerError,"Failed to create user", err)
 			return
 		}
 	}
-	jwtToken := auth.MakeToken(user.LookupID)
+	jwtToken := auth.MakeToken(user.LookupID, user.Role)
 
 	http.SetCookie(w, &http.Cookie{
 		HttpOnly: true,
@@ -60,7 +62,7 @@ func GetAuthCallBack(w http.ResponseWriter, r *http.Request) {
 		Value: jwtToken,
 	})
 
-	fmt.Printf("User authenticated: %+v\n", user)
+	logger.Info(ctx,fmt.Sprintf("User authenticated: %+v\n", user))
 	http.Redirect(w, r, "http://localhost:3000/", http.StatusFound)
 }
 func GetBeginAuth(w http.ResponseWriter, r *http.Request) {

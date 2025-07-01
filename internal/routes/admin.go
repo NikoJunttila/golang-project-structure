@@ -7,4 +7,5 @@ import (
 
 func registerAdminRoutes(r chi.Router) {
 	r.Get("/profile", handlers.GetProfileAdmin)
+	r.Get("/profile2", handlers.GetProfileHandlerAdmin)
 }

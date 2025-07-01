@@ -43,6 +43,7 @@ type User struct {
 	PasswordHash  string
 	Secret        string
 	Name          string
+	Role          string
 	AvatarUrl     string
 	Provider      string
 	ProviderID    string

@@ -2,9 +2,9 @@ package main
 
 import (
 	"fmt"
+	"io"
 	"net/http"
 	"os"
-	"io"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/cors"
@@ -14,11 +14,13 @@ import (
 	"github.com/nikojunttila/community/internal/logger"
 	customMW "github.com/nikojunttila/community/internal/middleware"
 	"github.com/nikojunttila/community/internal/routes"
+	"github.com/nikojunttila/community/internal/services/email"
 	"github.com/nikojunttila/community/internal/util"
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
 	"gopkg.in/natefinch/lumberjack.v2"
 )
+
 // This function creates the dedicated logger for requests
 func createRequestLogger() zerolog.Logger {
 	requestLogFile := &lumberjack.Logger{
@@ -41,6 +43,7 @@ func main() {
 	logger.LoggerSetup()
 	db.InitDefault()
 	auth.InitAuth()
+	email.EmailerInit(&email.Mailer)
 	r := chi.NewRouter()
 	r.Use(cors.Handler(cors.Options{
 		AllowedOrigins:   []string{"https://*", "http://*"},

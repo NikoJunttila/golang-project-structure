@@ -2,15 +2,17 @@ package handlers
 
 import (
 	"net/http"
+	"errors"
 )
 
 type exampleParams struct {
 	Password string `json:"password"`
 	Email    string `json:"email"`
 }
+var emailAndPass = errors.New("email or password is missing")
 
 func GetFooHandler(w http.ResponseWriter, r *http.Request) {
-	RespondWithJson(w, http.StatusOK, "foo")
+	RespondWithJson(w,r.Context(), http.StatusOK, "foo")
 }
 
 func ExampleHandler(w http.ResponseWriter, r *http.Request) {
@@ -21,8 +23,8 @@ func ExampleHandler(w http.ResponseWriter, r *http.Request) {
 
 	// Validate params
 	if params.Email == "" || params.Password == "" {
-		RespondWithError(w, 400, "email and password are required", nil)
+		RespondWithError(w, r.Context(), 400, "email and password are required", emailAndPass)
 		return
 	}
-	RespondWithJson(w, 200, "example")
+	RespondWithJson(w,r.Context(), 200, "example")
 }

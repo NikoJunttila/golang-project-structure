@@ -25,7 +25,7 @@ INSERT INTO users (
   updated_at
 ) VALUES (
   ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
-) RETURNING id, lookup_id, email, password_hash, secret, name, avatar_url, provider, provider_id, email_verified, disabled, created_at, updated_at
+) RETURNING id, lookup_id, email, password_hash, secret, name, role, avatar_url, provider, provider_id, email_verified, disabled, created_at, updated_at
 `
 
 type CreateUserParams struct {
@@ -64,6 +64,7 @@ func (q *Queries) CreateUser(ctx context.Context, arg CreateUserParams) (User, e
 		&i.PasswordHash,
 		&i.Secret,
 		&i.Name,
+		&i.Role,
 		&i.AvatarUrl,
 		&i.Provider,
 		&i.ProviderID,
@@ -86,7 +87,7 @@ func (q *Queries) DeleteUser(ctx context.Context, id string) error {
 }
 
 const getUserByEmail = `-- name: GetUserByEmail :one
-SELECT id, lookup_id, email, password_hash, secret, name, avatar_url, provider, provider_id, email_verified, disabled, created_at, updated_at FROM users
+SELECT id, lookup_id, email, password_hash, secret, name, role, avatar_url, provider, provider_id, email_verified, disabled, created_at, updated_at FROM users
 WHERE email = ?
 `
 
@@ -100,6 +101,7 @@ func (q *Queries) GetUserByEmail(ctx context.Context, email string) (User, error
 		&i.PasswordHash,
 		&i.Secret,
 		&i.Name,
+		&i.Role,
 		&i.AvatarUrl,
 		&i.Provider,
 		&i.ProviderID,
@@ -112,7 +114,7 @@ func (q *Queries) GetUserByEmail(ctx context.Context, email string) (User, error
 }
 
 const getUserByID = `-- name: GetUserByID :one
-SELECT id, lookup_id, email, password_hash, secret, name, avatar_url, provider, provider_id, email_verified, disabled, created_at, updated_at FROM users
+SELECT id, lookup_id, email, password_hash, secret, name, role, avatar_url, provider, provider_id, email_verified, disabled, created_at, updated_at FROM users
 WHERE id = ?
 `
 
@@ -126,6 +128,7 @@ func (q *Queries) GetUserByID(ctx context.Context, id string) (User, error) {
 		&i.PasswordHash,
 		&i.Secret,
 		&i.Name,
+		&i.Role,
 		&i.AvatarUrl,
 		&i.Provider,
 		&i.ProviderID,
@@ -138,7 +141,7 @@ func (q *Queries) GetUserByID(ctx context.Context, id string) (User, error) {
 }
 
 const getUserByProviderID = `-- name: GetUserByProviderID :one
-SELECT id, lookup_id, email, password_hash, secret, name, avatar_url, provider, provider_id, email_verified, disabled, created_at, updated_at FROM users
+SELECT id, lookup_id, email, password_hash, secret, name, role, avatar_url, provider, provider_id, email_verified, disabled, created_at, updated_at FROM users
 WHERE provider = ? AND provider_id = ?
 `
 
@@ -157,6 +160,7 @@ func (q *Queries) GetUserByProviderID(ctx context.Context, arg GetUserByProvider
 		&i.PasswordHash,
 		&i.Secret,
 		&i.Name,
+		&i.Role,
 		&i.AvatarUrl,
 		&i.Provider,
 		&i.ProviderID,
@@ -169,7 +173,7 @@ func (q *Queries) GetUserByProviderID(ctx context.Context, arg GetUserByProvider
 }
 
 const getUserBylookupID = `-- name: GetUserBylookupID :one
-SELECT id, lookup_id, email, password_hash, secret, name, avatar_url, provider, provider_id, email_verified, disabled, created_at, updated_at FROM users
+SELECT id, lookup_id, email, password_hash, secret, name, role, avatar_url, provider, provider_id, email_verified, disabled, created_at, updated_at FROM users
 WHERE lookup_id = ?
 `
 
@@ -183,6 +187,7 @@ func (q *Queries) GetUserBylookupID(ctx context.Context, lookupID string) (User,
 		&i.PasswordHash,
 		&i.Secret,
 		&i.Name,
+		&i.Role,
 		&i.AvatarUrl,
 		&i.Provider,
 		&i.ProviderID,
@@ -207,7 +212,7 @@ SET
   created_at = ?,
   updated_at = ?
 WHERE id = ?
-RETURNING id, lookup_id, email, password_hash, secret, name, avatar_url, provider, provider_id, email_verified, disabled, created_at, updated_at
+RETURNING id, lookup_id, email, password_hash, secret, name, role, avatar_url, provider, provider_id, email_verified, disabled, created_at, updated_at
 `
 
 type UpdateUserParams struct {
@@ -244,6 +249,7 @@ func (q *Queries) UpdateUser(ctx context.Context, arg UpdateUserParams) (User, e
 		&i.PasswordHash,
 		&i.Secret,
 		&i.Name,
+		&i.Role,
 		&i.AvatarUrl,
 		&i.Provider,
 		&i.ProviderID,

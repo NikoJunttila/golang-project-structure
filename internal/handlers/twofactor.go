@@ -6,13 +6,6 @@ import (
 	"encoding/base64"
 	"errors"
 	"fmt"
-	"github.com/nikojunttila/community/internal/auth"
-	"github.com/nikojunttila/community/internal/db"
-	userService "github.com/nikojunttila/community/internal/services/user"
-	"github.com/pquerna/otp/totp"
-	"github.com/rs/zerolog/log"
-	"github.com/yeqown/go-qrcode/v2"
-	"github.com/yeqown/go-qrcode/writer/standard"
 	"html/template"
 	"image/color"
 	"io"
@@ -20,6 +13,15 @@ import (
 	"net/url"
 	"strings"
 	"time"
+
+	"github.com/nikojunttila/community/internal/auth"
+	"github.com/nikojunttila/community/internal/db"
+	"github.com/nikojunttila/community/internal/logger"
+	userService "github.com/nikojunttila/community/internal/services/user"
+	"github.com/pquerna/otp/totp"
+	"github.com/rs/zerolog/log"
+	"github.com/yeqown/go-qrcode/v2"
+	"github.com/yeqown/go-qrcode/writer/standard"
 )
 
 var templates = template.Must(template.ParseGlob("templates/*.html"))
@@ -34,18 +36,17 @@ func GetHomeHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func LoginHandler(w http.ResponseWriter, r *http.Request) {
+	logger.Info(r.Context(),"login attempt")
 	if r.Method == "GET" {
 		err := templates.ExecuteTemplate(w, "login.html", nil)
 		if err != nil {
-			log.Error().Msgf("Template error: %v", err)
-			http.Error(w, "Internal Server Error", http.StatusInternalServerError)
+			RespondWithError(w,r.Context(),http.StatusInternalServerError,"Internal server error",err)
 			return
 		}
 		return
 	}
 	if err := r.ParseForm(); err != nil {
-		log.Error().Msgf("Form parse error: %v", err)
-		http.Error(w, "Error parsing form", http.StatusBadRequest)
+		RespondWithError(w,r.Context(),http.StatusBadRequest,"Error parsing form",err)
 		return
 	}
 
@@ -60,27 +61,26 @@ func LoginHandler(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			// Don't reveal whether user exists or password is wrong for security
-			RespondWithError(w, http.StatusUnauthorized, "Invalid email or password", userService.ErrWrongPassword)
+			RespondWithError(w,r.Context() ,http.StatusUnauthorized, "Invalid email or password", userService.ErrWrongPassword)
 			return
 		}
 
 		log.Error().Msgf("database error during login %v", err)
-		RespondWithError(w, http.StatusInternalServerError, "Internal server error", err)
+		RespondWithError(w,r.Context() ,http.StatusInternalServerError, "Internal server error", err)
 		return
 	}
 	if user.Provider != string(userService.GetServiceEnumName(userService.Email)) {
-		RespondWithError(w, http.StatusBadRequest,
+		RespondWithError(w,r.Context() ,http.StatusBadRequest,
 			"Please use the authentication method you originally signed up with",
 			userService.ErrIncorrectAuthType)
 		return
 	}
 	if !auth.CheckPasswordHash(password, user.PasswordHash) {
-		log.Warn().Msgf("failed login attempt %s", email)
-		RespondWithError(w, http.StatusUnauthorized, "Invalid email or password", userService.ErrWrongPassword)
+		RespondWithError(w,r.Context() ,http.StatusUnauthorized, "Invalid email or password", userService.ErrWrongPassword)
 		return
 	}
 	// Generate JWT token
-	token := auth.MakeToken(user.LookupID)
+	token := auth.MakeToken(user.LookupID,user.Role)
 	// Set secure cookie
 	cookie := &http.Cookie{
 		Name:     "jwt",

@@ -1,4 +1,4 @@
-package customMiddleware
+package middleware
 
 import (
 	"net/http"
@@ -6,34 +6,61 @@ import (
 
 	"github.com/go-chi/chi/v5/middleware"
 	"github.com/rs/zerolog"
+	"github.com/nikojunttila/community/internal/logger"
 )
-
-// RequestLogger is a middleware factory that returns a new middleware handler
-// for logging HTTP requests using the provided zerolog.Logger.
-func RequestLogger(l zerolog.Logger) func(next http.Handler) http.Handler {
+const slowRequestThreshold = 800 * time.Millisecond
+// RequestLogger returns a middleware that:
+// 1. Enriches each request with a contextual logger (e.g. request_id, method, path).
+// 2. Logs the request after completion, with appropriate severity based on status code.
+func RequestLogger(baseLogger zerolog.Logger) func(next http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
-		fn := func(w http.ResponseWriter, r *http.Request) {
-			// Prepare fields for logging.
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			start := time.Now()
 			ww := middleware.NewWrapResponseWriter(w, r.ProtoMajor)
 
-			// Defer the logging of the request completion.
-			defer func() {
-				// Log request details using the logger instance passed to the middleware.
-				l.Info().
-					Str("ip", r.RemoteAddr).
-					Str("path", r.URL.Path).
-					Str("method", r.Method).
-					Int("status", ww.Status()).
-					Dur("latency", time.Since(start)).
-					Int("bytes", ww.BytesWritten()).
-					Msg("Request handled")
-			}()
+			// Extract request ID (set by chi's middleware.RequestID if enabled)
+			requestID := middleware.GetReqID(r.Context())
+			// realIP := middleware.GetR
+			// Create a contextual logger with request metadata
+			reqLogger := baseLogger.With().
+				Str("request_id", requestID).
+				Str("method", r.Method).
+				Str("path", r.URL.Path).
+				Str("remote", r.RemoteAddr).
+				Logger()
+	
+			// Inject the contextual logger into the request context
+			ctx := logger.NewContext(r.Context(), &reqLogger)
+			r = r.WithContext(ctx)
 
-			// Call the next handler in the chain.
+			// Serve the request
 			next.ServeHTTP(ww, r)
-		}
-		return http.HandlerFunc(fn)
+
+			// Log request summary after handling
+			log := logger.FromContext(ctx)
+			duration := time.Since(start)
+
+			entry := log.With().
+				Str("request_id", requestID).
+				Int("status", ww.Status()).
+				Int("bytes", ww.BytesWritten()).
+				Dur("latency", duration).
+				Logger()
+			
+			// Check if the request duration exceeds the threshold
+			if duration > slowRequestThreshold {
+				entry.Warn().Msg("Slow request detected")
+			}
+
+			switch {
+			case ww.Status() >= 500:
+				entry.Error().Msg("Server error")
+			case ww.Status() >= 400:
+				entry.Warn().Msg("Client error")
+			default:
+				entry.Info().Msg("Request handled successfully")
+			}
+		})
 	}
 }
 

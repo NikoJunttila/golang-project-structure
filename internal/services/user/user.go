@@ -16,7 +16,7 @@ import (
 func FetchUserWithEmail(ctx context.Context, email string) (db.User, error){
 	user, err := db.Get().GetUserByEmail(ctx, email)
 	if err != nil {
-		logger.Error(err, "Failed to FetchUserWithEmail")
+		logger.Error(ctx, err, "Failed to FetchUserWithEmail")
   	return db.User{}, err
 	}
 	return user, nil

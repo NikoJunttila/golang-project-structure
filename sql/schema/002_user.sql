@@ -6,6 +6,7 @@
      password_hash TEXT NOT NULL, -- "" for OAuth-only users
      secret TEXT NOT NULL DEFAULT '', -- twofactor secret
      name TEXT NOT NULL,
+     role TEXT NOT NULL DEFAULT 'user',
      avatar_url TEXT NOT NULL DEFAULT '',
      provider TEXT NOT NULL DEFAULT 'local', -- 'local', 'google'
      provider_id TEXT NOT NULL DEFAULT '', -- Google user ID
