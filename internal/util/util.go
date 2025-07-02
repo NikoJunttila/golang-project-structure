@@ -2,8 +2,9 @@ package util
 
 import (
 	"errors"
-	"github.com/rs/zerolog/log"
 	"os"
+
+	"github.com/rs/zerolog/log"
 )
 
 var envErr = errors.New("Failed to get from env")
