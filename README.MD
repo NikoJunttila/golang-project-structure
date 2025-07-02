@@ -12,6 +12,7 @@ rate limiting per route ie login route has strict rate limit
 golangci-lint to fix things
 gofmt -w . to fix formatting
 gofmt -l . to list formatting errors
+goimports -w . fix imports
 
 
 Calling a function to log inside logger will break caller info
