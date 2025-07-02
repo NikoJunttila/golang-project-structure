@@ -14,6 +14,7 @@ require (
 	github.com/mailgun/mailgun-go/v5 v5.4.2
 	github.com/markbates/goth v1.81.0
 	github.com/pquerna/otp v1.5.0
+	github.com/robfig/cron/v3 v3.0.1
 	github.com/rs/zerolog v1.34.0
 	github.com/yeqown/go-qrcode/v2 v2.2.5
 	github.com/yeqown/go-qrcode/writer/standard v1.3.0

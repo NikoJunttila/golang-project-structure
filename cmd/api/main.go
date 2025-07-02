@@ -14,6 +14,7 @@ import (
 	"github.com/nikojunttila/community/internal/logger"
 	customMW "github.com/nikojunttila/community/internal/middleware"
 	"github.com/nikojunttila/community/internal/routes"
+	"github.com/nikojunttila/community/internal/services/cron"
 	"github.com/nikojunttila/community/internal/services/email"
 	"github.com/nikojunttila/community/internal/util"
 	"github.com/rs/zerolog"
@@ -44,6 +45,7 @@ func main() {
 	db.InitDefault()
 	auth.InitAuth()
 	email.EmailerInit(&email.Mailer)
+	cron.SetupCron()
 	r := chi.NewRouter()
 	r.Use(cors.Handler(cors.Options{
 		AllowedOrigins:   []string{"https://*", "http://*"},

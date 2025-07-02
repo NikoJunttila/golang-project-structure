@@ -17,6 +17,8 @@ Calling a function to log inside logger will break caller info
 // Consider caching user data to reduce database hits
 var userCache = make(map[string]db.User)
 
+maybe add this in airbytes or other things need later
+https://github.com/benmanns/goworker
 
 Log sampling with Zerolog
 Sampling is a technique used to intentionally drop repetitive log entries so that only a proportion of them are kept and processed without sacrificing the insights derived from the logs. This is helpful when your highly trafficked application is producing a massive amount of records, and storing every single one will lead to excessive storage and processing costs which may not be desirable. Sampling fixes this problem by preventing the same logs from being recorded hundreds or thousands of times per second which prevents resources from being used up unnecessarily.
