@@ -20,15 +20,15 @@ func RespondWithError(w http.ResponseWriter, ctx context.Context, code int, msg 
 	} else {
 		logger.Warn(ctx, err, fmt.Sprintf("Client error response: %s", msg))
 	}
-	RespondWithJson(w,ctx, code, errResponse{
+	RespondWithJson(w, ctx, code, errResponse{
 		Error: msg,
 	})
 }
 
-func RespondWithJson(w http.ResponseWriter,ctx context.Context, code int, payload any) {
+func RespondWithJson(w http.ResponseWriter, ctx context.Context, code int, payload any) {
 	dat, err := json.Marshal(payload)
 	if err != nil {
-		logger.Error(ctx,err,fmt.Sprintf("Failed to marshal JSON response %v", payload))
+		logger.Error(ctx, err, fmt.Sprintf("Failed to marshal JSON response %v", payload))
 		w.WriteHeader(500)
 		return
 	}
@@ -50,7 +50,7 @@ func DecodeJSONBody(w http.ResponseWriter, r *http.Request, v any, maxSize int64
 	r.Body = http.MaxBytesReader(w, r.Body, maxSize)
 	defer func() {
 		if err := r.Body.Close(); err != nil {
-			logger.Error(r.Context(),err,"Failed to close request body")
+			logger.Error(r.Context(), err, "Failed to close request body")
 		}
 	}()
 	decoder := json.NewDecoder(r.Body)

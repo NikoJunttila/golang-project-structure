@@ -21,9 +21,9 @@ func InitializeRoutes(r *chi.Mux) {
 	r.Get("/", func(w http.ResponseWriter, r *http.Request) {
 		http.ServeFile(w, r, "index.html")
 	})
-	r.Route("/user", func(r chi.Router){
-		r.Use(middleware.RequireRoles(auth.User,auth.Admin))
-	  r.Get("/foo", handlers.GetFooHandler)
+	r.Route("/user", func(r chi.Router) {
+		r.Use(middleware.RequireRoles(auth.User, auth.Admin))
+		r.Get("/foo", handlers.GetFooHandler)
 	})
 
 	r.Route("/admin", func(r chi.Router) {
@@ -32,7 +32,7 @@ func InitializeRoutes(r *chi.Mux) {
 		r.Use(jwtauth.Authenticator(auth.GetTokenAuth()))
 		r.Use(middleware.RequireRoles(auth.Admin))
 
-    r.Use(middleware.AdminAuditMiddleware())
+		r.Use(middleware.AdminAuditMiddleware())
 		registerAdminRoutes(r)
 	})
 

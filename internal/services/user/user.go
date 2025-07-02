@@ -13,11 +13,11 @@ import (
 	"github.com/rs/zerolog/log"
 )
 
-func FetchUserWithEmail(ctx context.Context, email string) (db.User, error){
+func FetchUserWithEmail(ctx context.Context, email string) (db.User, error) {
 	user, err := db.Get().GetUserByEmail(ctx, email)
 	if err != nil {
 		logger.Error(ctx, err, "Failed to FetchUserWithEmail")
-  	return db.User{}, err
+		return db.User{}, err
 	}
 	return user, nil
 }

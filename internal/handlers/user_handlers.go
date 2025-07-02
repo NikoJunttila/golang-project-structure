@@ -19,11 +19,11 @@ import (
 var (
 	// Email validation regex (basic but more robust than none)
 	emailRegex = regexp.MustCompile(`^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$`)
-	
+
 	// Common validation errors
-	ErrInvalidEmail    = errors.New("invalid email format")
-	ErrWeakPassword    = errors.New("password must be at least 8 characters")
-	ErrMissingFields   = errors.New("email and password are required")
+	ErrInvalidEmail  = errors.New("invalid email format")
+	ErrWeakPassword  = errors.New("password must be at least 8 characters")
+	ErrMissingFields = errors.New("email and password are required")
 )
 
 type CreateUserRequest struct {
@@ -53,13 +53,13 @@ func validateCreateUserRequest(req *CreateUserRequest) error {
 	if req.Email == "" || req.Password == "" {
 		return ErrMissingFields
 	}
-	
+
 	// Clean and validate email
 	req.Email = strings.TrimSpace(strings.ToLower(req.Email))
 	if !emailRegex.MatchString(req.Email) {
 		return ErrInvalidEmail
 	}
-	
+
 	if len(req.Password) < 8 {
 		return ErrWeakPassword
 	}
@@ -81,18 +81,18 @@ func validateLoginRequest(req *LoginRequest) error {
 // PostCreateUserHandlerEmail handles user registration via email
 func PostCreateUserHandlerEmail(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
-	
+
 	var req CreateUserRequest
 	if !DecodeJSONBody(w, r, &req, 0) {
 		log.Error().Msg("failed to decode request body")
 		return
 	}
-	
+
 	// Validate input
 	if err := validateCreateUserRequest(&req); err != nil {
 		var statusCode int
 		var serviceErr error
-		
+
 		switch err {
 		case ErrMissingFields:
 			statusCode = http.StatusBadRequest
@@ -107,38 +107,38 @@ func PostCreateUserHandlerEmail(w http.ResponseWriter, r *http.Request) {
 			statusCode = http.StatusBadRequest
 			serviceErr = err
 		}
-		
-		RespondWithError(w,ctx ,statusCode, err.Error(), serviceErr)
+
+		RespondWithError(w, ctx, statusCode, err.Error(), serviceErr)
 		return
 	}
-	
+
 	// Check if user already exists
 	exists, err := userService.CheckUserExists(ctx, req.Email)
 	if err != nil {
 		log.Error().Msgf("failed to check user existence %v", err)
-		RespondWithError(w,ctx, http.StatusInternalServerError, "Internal server error", err)
+		RespondWithError(w, ctx, http.StatusInternalServerError, "Internal server error", err)
 		return
 	}
-	
+
 	if exists {
-		RespondWithError(w,ctx, http.StatusConflict, "User already exists", userService.ErrUserAlreadyExists)
+		RespondWithError(w, ctx, http.StatusConflict, "User already exists", userService.ErrUserAlreadyExists)
 		return
 	}
-	
+
 	// Create user
 	createParams := userService.CreateUserParams{
 		Email:   req.Email,
 		Name:    "",
 		Service: string(userService.GetServiceEnumName(userService.Email)),
 	}
-	
+
 	user, err := userService.CreateUser(ctx, req.Password, createParams, userService.OauthCreate{})
 	if err != nil {
 		slog.Error("failed to create user", "error", err, "email", req.Email)
-		RespondWithError(w,ctx, http.StatusInternalServerError, "Failed to create user", err)
+		RespondWithError(w, ctx, http.StatusInternalServerError, "Failed to create user", err)
 		return
 	}
-	RespondWithJson(w,ctx, http.StatusCreated, map[string]string{
+	RespondWithJson(w, ctx, http.StatusCreated, map[string]string{
 		"message": "User created successfully",
 		"userID":  user.ID,
 	})
@@ -153,33 +153,33 @@ func PostLoginHandler(w http.ResponseWriter, r *http.Request) {
 	}
 	// Validate input
 	if err := validateLoginRequest(&req); err != nil {
-		RespondWithError(w, ctx,http.StatusBadRequest, err.Error(), userService.ErrParamsMismatch)
+		RespondWithError(w, ctx, http.StatusBadRequest, err.Error(), userService.ErrParamsMismatch)
 		return
 	}
 	dbUser, err := db.Get().GetUserByEmail(r.Context(), req.Email)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			// Don't reveal whether user exists or password is wrong for security
-			RespondWithError(w,ctx ,http.StatusBadRequest, "Invalid email or password", userService.ErrWrongPassword)
+			RespondWithError(w, ctx, http.StatusBadRequest, "Invalid email or password", userService.ErrWrongPassword)
 			return
 		}
-		RespondWithError(w,ctx, http.StatusInternalServerError, "Internal server error", err)
+		RespondWithError(w, ctx, http.StatusInternalServerError, "Internal server error", err)
 		return
 	}
 	if dbUser.Provider != string(userService.GetServiceEnumName(userService.Email)) {
-		RespondWithError(w,ctx, http.StatusBadRequest, 
-			"Please use the authentication method you originally signed up with", 
+		RespondWithError(w, ctx, http.StatusBadRequest,
+			"Please use the authentication method you originally signed up with",
 			userService.ErrIncorrectAuthType)
 		return
 	}
 	if !auth.CheckPasswordHash(req.Password, dbUser.PasswordHash) {
-		RespondWithError(w, ctx,http.StatusBadRequest, "Invalid email or password", userService.ErrWrongPassword)
+		RespondWithError(w, ctx, http.StatusBadRequest, "Invalid email or password", userService.ErrWrongPassword)
 		return
 	}
-	
+
 	// Generate JWT token
-	token := auth.MakeToken(dbUser.LookupID,dbUser.Role)
-	
+	token := auth.MakeToken(dbUser.LookupID, dbUser.Role)
+
 	// Set secure cookie
 	cookie := &http.Cookie{
 		Name:     "jwt",
@@ -191,21 +191,21 @@ func PostLoginHandler(w http.ResponseWriter, r *http.Request) {
 		// Secure: true, // Enable in production with HTTPS
 	}
 	http.SetCookie(w, cookie)
-	
+
 	user := &User{
 		ID:       dbUser.LookupID,
 		Email:    dbUser.Email,
 		Name:     dbUser.Name,
 		Provider: dbUser.Provider,
 	}
-	
+
 	response := LoginResponse{
 		Token: token,
 		User:  user,
 	}
-	
+
 	log.Info().Msgf("successful login %s %s", dbUser.LookupID, req.Email)
-	RespondWithJson(w,ctx, http.StatusOK, response)
+	RespondWithJson(w, ctx, http.StatusOK, response)
 }
 
 // GetProfileHandler retrieves the authenticated user's profile
@@ -215,10 +215,10 @@ func GetProfileHandler(w http.ResponseWriter, r *http.Request) {
 	fmt.Println(ctx)
 	user, err := auth.GetUserFromContext(r.Context())
 	if err != nil {
-		RespondWithError(w,ctx, http.StatusInternalServerError, "Failed to find active user", err)
+		RespondWithError(w, ctx, http.StatusInternalServerError, "Failed to find active user", err)
 		return
 	}
-	
+
 	slog.Info("profile accessed", "userID", user.ID)
-	RespondWithJson(w,ctx, http.StatusOK, user)
+	RespondWithJson(w, ctx, http.StatusOK, user)
 }

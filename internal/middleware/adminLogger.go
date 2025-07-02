@@ -44,10 +44,10 @@ func AdminAuditMiddleware() func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			startTime := time.Now()
-			
+
 			// Generate unique request ID for this request
 			requestID := fmt.Sprintf("req_%d_%s", startTime.UnixNano(), generateShortID())
-			
+
 			// Add request ID to context for potential use in handlers
 			ctx := context.WithValue(r.Context(), "request_id", requestID)
 			r = r.WithContext(ctx)
@@ -72,7 +72,7 @@ func AdminAuditMiddleware() func(http.Handler) http.Handler {
 			// Get admin user from context (should be available after JWT middleware)
 			admin, err := auth.GetUserFromContext(r.Context())
 			if err != nil {
-				logger.Error(r.Context(),err,"Failed to get admin user for audit log")
+				logger.Error(r.Context(), err, "Failed to get admin user for audit log")
 				next.ServeHTTP(w, r)
 				return
 			}
@@ -112,7 +112,7 @@ func AdminAuditMiddleware() func(http.Handler) http.Handler {
 					RequestID:      requestID,
 				})
 				if err != nil {
-					logger.Error(ctx, err,"Failed to log admin audit")
+					logger.Error(ctx, err, "Failed to log admin audit")
 				}
 			}()
 		})
@@ -138,7 +138,7 @@ type adminAuditParams struct {
 }
 
 // logAdminAction saves the audit log to database
-func logAdminAction(ctx context.Context , params adminAuditParams) error {
+func logAdminAction(ctx context.Context, params adminAuditParams) error {
 	_, err := db.Get().CreateAuditLog(ctx, db.CreateAuditLogParams{
 		AdminUserID:    params.AdminUserID,
 		AdminEmail:     params.AdminEmail,

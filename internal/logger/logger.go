@@ -47,7 +47,7 @@ func Error(ctx context.Context, err error, message string) {
 // Warn logs a warning message, pulling the logger from the context.
 func Warn(ctx context.Context, err error, message string) {
 	if err != nil {
-	  FromContext(ctx).Warn().Err(err).Msg(message)
+		FromContext(ctx).Warn().Err(err).Msg(message)
 		return
 	}
 	FromContext(ctx).Warn().Msg(message)

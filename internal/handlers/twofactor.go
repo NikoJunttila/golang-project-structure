@@ -36,17 +36,17 @@ func GetHomeHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func LoginHandler(w http.ResponseWriter, r *http.Request) {
-	logger.Info(r.Context(),"login attempt")
+	logger.Info(r.Context(), "login attempt")
 	if r.Method == "GET" {
 		err := templates.ExecuteTemplate(w, "login.html", nil)
 		if err != nil {
-			RespondWithError(w,r.Context(),http.StatusInternalServerError,"Internal server error",err)
+			RespondWithError(w, r.Context(), http.StatusInternalServerError, "Internal server error", err)
 			return
 		}
 		return
 	}
 	if err := r.ParseForm(); err != nil {
-		RespondWithError(w,r.Context(),http.StatusBadRequest,"Error parsing form",err)
+		RespondWithError(w, r.Context(), http.StatusBadRequest, "Error parsing form", err)
 		return
 	}
 
@@ -61,26 +61,26 @@ func LoginHandler(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			// Don't reveal whether user exists or password is wrong for security
-			RespondWithError(w,r.Context() ,http.StatusUnauthorized, "Invalid email or password", userService.ErrWrongPassword)
+			RespondWithError(w, r.Context(), http.StatusUnauthorized, "Invalid email or password", userService.ErrWrongPassword)
 			return
 		}
 
 		log.Error().Msgf("database error during login %v", err)
-		RespondWithError(w,r.Context() ,http.StatusInternalServerError, "Internal server error", err)
+		RespondWithError(w, r.Context(), http.StatusInternalServerError, "Internal server error", err)
 		return
 	}
 	if user.Provider != string(userService.GetServiceEnumName(userService.Email)) {
-		RespondWithError(w,r.Context() ,http.StatusBadRequest,
+		RespondWithError(w, r.Context(), http.StatusBadRequest,
 			"Please use the authentication method you originally signed up with",
 			userService.ErrIncorrectAuthType)
 		return
 	}
 	if !auth.CheckPasswordHash(password, user.PasswordHash) {
-		RespondWithError(w,r.Context() ,http.StatusUnauthorized, "Invalid email or password", userService.ErrWrongPassword)
+		RespondWithError(w, r.Context(), http.StatusUnauthorized, "Invalid email or password", userService.ErrWrongPassword)
 		return
 	}
 	// Generate JWT token
-	token := auth.MakeToken(user.LookupID,user.Role)
+	token := auth.MakeToken(user.LookupID, user.Role)
 	// Set secure cookie
 	cookie := &http.Cookie{
 		Name:     "jwt",

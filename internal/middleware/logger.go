@@ -5,10 +5,12 @@ import (
 	"time"
 
 	"github.com/go-chi/chi/v5/middleware"
-	"github.com/rs/zerolog"
 	"github.com/nikojunttila/community/internal/logger"
+	"github.com/rs/zerolog"
 )
+
 const slowRequestThreshold = 800 * time.Millisecond
+
 // RequestLogger returns a middleware that:
 // 1. Enriches each request with a contextual logger (e.g. request_id, method, path).
 // 2. Logs the request after completion, with appropriate severity based on status code.
@@ -28,7 +30,7 @@ func RequestLogger(baseLogger zerolog.Logger) func(next http.Handler) http.Handl
 				Str("path", r.URL.Path).
 				Str("remote", r.RemoteAddr).
 				Logger()
-	
+
 			// Inject the contextual logger into the request context
 			ctx := logger.NewContext(r.Context(), &reqLogger)
 			r = r.WithContext(ctx)
@@ -46,7 +48,7 @@ func RequestLogger(baseLogger zerolog.Logger) func(next http.Handler) http.Handl
 				Int("bytes", ww.BytesWritten()).
 				Dur("latency", duration).
 				Logger()
-			
+
 			// Check if the request duration exceeds the threshold
 			if duration > slowRequestThreshold {
 				entry.Warn().Msg("Slow request detected")
@@ -63,4 +65,3 @@ func RequestLogger(baseLogger zerolog.Logger) func(next http.Handler) http.Handl
 		})
 	}
 }
-

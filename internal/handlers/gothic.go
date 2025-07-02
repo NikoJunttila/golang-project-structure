@@ -19,19 +19,19 @@ func GetAuthCallBack(w http.ResponseWriter, r *http.Request) {
 		// Check if session exists
 		session, _ := gothic.Store.Get(r, "gothic_session")
 		fmt.Printf("Session values: %+v\n", session.Values)
-		RespondWithError(w,ctx ,http.StatusInternalServerError, "Failed to complete user auth", err)
+		RespondWithError(w, ctx, http.StatusInternalServerError, "Failed to complete user auth", err)
 		return
 	}
 	exists, err := userService.CheckUserExists(r.Context(), userInfo.Email)
 	if err != nil {
-		RespondWithError(w,ctx, http.StatusInternalServerError, "Internal server error", err)
+		RespondWithError(w, ctx, http.StatusInternalServerError, "Internal server error", err)
 		return
 	}
 	var user db.User
 	if exists {
 		user, err = db.Get().GetUserByEmail(r.Context(), userInfo.Email)
 		if err != nil {
-			RespondWithError(w,ctx, http.StatusInternalServerError, "Internal server error", err)
+			RespondWithError(w, ctx, http.StatusInternalServerError, "Internal server error", err)
 		}
 	} else {
 		user, err = userService.CreateUser(r.Context(), "", userService.CreateUserParams{
@@ -45,7 +45,7 @@ func GetAuthCallBack(w http.ResponseWriter, r *http.Request) {
 			ProviderID:    userInfo.UserID,
 		})
 		if err != nil {
-			RespondWithError(w, ctx, http.StatusInternalServerError,"Failed to create user", err)
+			RespondWithError(w, ctx, http.StatusInternalServerError, "Failed to create user", err)
 			return
 		}
 	}
@@ -62,7 +62,7 @@ func GetAuthCallBack(w http.ResponseWriter, r *http.Request) {
 		Value: jwtToken,
 	})
 
-	logger.Info(ctx,fmt.Sprintf("User authenticated: %+v\n", user))
+	logger.Info(ctx, fmt.Sprintf("User authenticated: %+v\n", user))
 	http.Redirect(w, r, "http://localhost:3000/", http.StatusFound)
 }
 func GetBeginAuth(w http.ResponseWriter, r *http.Request) {
