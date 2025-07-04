@@ -6,7 +6,6 @@ import (
 	"encoding/base64"
 	"errors"
 	"fmt"
-	"html/template"
 	"image/color"
 	"io"
 	"net/http"
@@ -18,13 +17,14 @@ import (
 	"github.com/nikojunttila/community/internal/db"
 	"github.com/nikojunttila/community/internal/logger"
 	userService "github.com/nikojunttila/community/internal/services/user"
+	tp "github.com/nikojunttila/community/templates"
 	"github.com/pquerna/otp/totp"
 	"github.com/rs/zerolog/log"
 	"github.com/yeqown/go-qrcode/v2"
 	"github.com/yeqown/go-qrcode/writer/standard"
 )
 
-var templates = template.Must(template.ParseGlob("templates/*.html"))
+var templates = tp.Templates
 
 func GetHomeHandler(w http.ResponseWriter, r *http.Request) {
 	err := templates.ExecuteTemplate(w, "home.html", nil)
