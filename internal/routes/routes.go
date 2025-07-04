@@ -13,6 +13,9 @@ import (
 )
 
 func InitializeRoutes(r *chi.Mux) {
+	r.Get("/health", handlers.HealthCheck)
+	r.Get("/health/db", handlers.HealthCheckDB)
+	r.Get("/healthz", handlers.HealthCheck)
 	// Group for authenticated (non-public) routes
 	workDir, _ := os.Getwd()
 	filesDir := http.Dir(filepath.Join(workDir, "static"))

@@ -7,7 +7,7 @@ import (
 )
 
 func task() {
-	fmt.Println("hellope")
+	fmt.Println("hellope from cronjob")
 }
 
 func SetupCron() {
@@ -15,8 +15,7 @@ func SetupCron() {
 	// c.AddFunc("@every 1s", func() {
 	// 	fmt.Println("Running data transfer")
 	// })
-	c.AddFunc("* * * * *", func() {
-		//every minute
+	c.AddFunc("* * 1 * *", func() {
 		task()
 	})
 	c.Start()
