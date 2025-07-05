@@ -74,6 +74,7 @@ func registerPublicRoutes(r chi.Router) {
 	r.Get("/{provider}/begin", handlers.GetBeginAuth)
 	r.Get("/{provider}/callback", handlers.GetAuthCallBack)
 
+	r.Get("/email_create", handlers.GetCreatePage)
 	r.Post("/email_create", handlers.PostCreateUserHandlerEmail)
 	r.Post("/email_login", handlers.PostLoginHandler)
 }

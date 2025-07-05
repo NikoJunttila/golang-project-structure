@@ -11,7 +11,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/nikojunttila/community/internal/auth"
+	"github.com/nikojunttila/community/internal/cache"
 	"github.com/nikojunttila/community/internal/db"
 	"github.com/nikojunttila/community/internal/logger"
 )
@@ -70,7 +70,7 @@ func AdminAuditMiddleware() func(http.Handler) http.Handler {
 			}
 
 			// Get admin user from context (should be available after JWT middleware)
-			admin, err := auth.GetUserFromContext(r.Context())
+			admin, err := cache.GetUser(ctx)
 			if err != nil {
 				logger.Error(r.Context(), err, "Failed to get admin user for audit log")
 				next.ServeHTTP(w, r)

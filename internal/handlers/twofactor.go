@@ -14,6 +14,7 @@ import (
 	"time"
 
 	"github.com/nikojunttila/community/internal/auth"
+	"github.com/nikojunttila/community/internal/cache"
 	"github.com/nikojunttila/community/internal/db"
 	"github.com/nikojunttila/community/internal/logger"
 	userService "github.com/nikojunttila/community/internal/services/user"
@@ -105,7 +106,7 @@ func LoginHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func GetGenerateOTPHandler(w http.ResponseWriter, r *http.Request) {
-	user, err := auth.GetUserFromContext(r.Context())
+	user, err := cache.GetUser(r.Context())
 	if err != nil {
 		http.Redirect(w, r, "/two/login", http.StatusFound)
 		return
@@ -165,7 +166,7 @@ func GetGenerateOTPHandler(w http.ResponseWriter, r *http.Request) {
 func ValidateOTPHandler(w http.ResponseWriter, r *http.Request) {
 	switch r.Method {
 	case "GET":
-		user, err := auth.GetUserFromContext(r.Context())
+		user, err := cache.GetUser(r.Context())
 		if err != nil {
 			http.Redirect(w, r, "/two/login", http.StatusFound)
 			return
@@ -193,7 +194,7 @@ func ValidateOTPHandler(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
-		user, err := auth.GetUserFromContext(r.Context())
+		user, err := cache.GetUser(r.Context())
 		if err != nil || user.Secret == "" {
 			log.Error().Msgf("User %s does not exist or has no secret", user.Email)
 			http.Redirect(w, r, "/two/login", http.StatusFound)

@@ -3,17 +3,16 @@ package handlers
 import (
 	"database/sql"
 	"errors"
-	"fmt"
-	"log/slog"
 	"net/http"
 	"regexp"
 	"strings"
 	"time"
 
 	"github.com/nikojunttila/community/internal/auth"
+	"github.com/nikojunttila/community/internal/cache"
 	"github.com/nikojunttila/community/internal/db"
+	"github.com/nikojunttila/community/internal/logger"
 	userService "github.com/nikojunttila/community/internal/services/user"
-	"github.com/rs/zerolog/log"
 )
 
 var (
@@ -27,7 +26,7 @@ var (
 )
 
 type CreateUserRequest struct {
-	Password string `json:"password" validate:"required,min=8"`
+	Password string `json:"password" validate:"required,min=6"`
 	Email    string `json:"email" validate:"required,email"`
 }
 
@@ -83,10 +82,14 @@ func PostCreateUserHandlerEmail(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 
 	var req CreateUserRequest
-	if !DecodeJSONBody(w, r, &req, 0) {
-		log.Error().Msg("failed to decode request body")
+	err := r.ParseForm()
+	if err != nil {
+		RespondWithError(w, ctx, http.StatusBadRequest, "invalid form data", err)
 		return
 	}
+
+	req.Email = r.FormValue("email")
+	req.Password = r.FormValue("password")
 
 	// Validate input
 	if err := validateCreateUserRequest(&req); err != nil {
@@ -107,7 +110,6 @@ func PostCreateUserHandlerEmail(w http.ResponseWriter, r *http.Request) {
 			statusCode = http.StatusBadRequest
 			serviceErr = err
 		}
-
 		RespondWithError(w, ctx, statusCode, err.Error(), serviceErr)
 		return
 	}
@@ -115,7 +117,7 @@ func PostCreateUserHandlerEmail(w http.ResponseWriter, r *http.Request) {
 	// Check if user already exists
 	exists, err := userService.CheckUserExists(ctx, req.Email)
 	if err != nil {
-		log.Error().Msgf("failed to check user existence %v", err)
+		logger.Error(ctx, err, "failed to check user existence")
 		RespondWithError(w, ctx, http.StatusInternalServerError, "Internal server error", err)
 		return
 	}
@@ -134,7 +136,6 @@ func PostCreateUserHandlerEmail(w http.ResponseWriter, r *http.Request) {
 
 	user, err := userService.CreateUser(ctx, req.Password, createParams, userService.OauthCreate{})
 	if err != nil {
-		slog.Error("failed to create user", "error", err, "email", req.Email)
 		RespondWithError(w, ctx, http.StatusInternalServerError, "Failed to create user", err)
 		return
 	}
@@ -203,22 +204,24 @@ func PostLoginHandler(w http.ResponseWriter, r *http.Request) {
 		Token: token,
 		User:  user,
 	}
-
-	log.Info().Msgf("successful login %s %s", dbUser.LookupID, req.Email)
 	RespondWithJson(w, ctx, http.StatusOK, response)
 }
 
 // GetProfileHandler retrieves the authenticated user's profile
 func GetProfileHandler(w http.ResponseWriter, r *http.Request) {
-	time.Sleep(900 * time.Millisecond)
 	ctx := r.Context()
-	fmt.Println(ctx)
-	user, err := auth.GetUserFromContext(r.Context())
+	user, err := cache.GetUser(ctx)
 	if err != nil {
 		RespondWithError(w, ctx, http.StatusInternalServerError, "Failed to find active user", err)
 		return
 	}
-
-	slog.Info("profile accessed", "userID", user.ID)
 	RespondWithJson(w, ctx, http.StatusOK, user)
+}
+
+func GetCreatePage(w http.ResponseWriter, r *http.Request) {
+	err := templates.ExecuteTemplate(w, "createUser.html", nil)
+	if err != nil {
+		RespondWithError(w, r.Context(), http.StatusInternalServerError, "internal server error", err)
+		http.Error(w, "Internal Server Error", http.StatusInternalServerError)
+	}
 }

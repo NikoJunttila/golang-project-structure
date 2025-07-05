@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"net/http"
 
-	"github.com/nikojunttila/community/internal/auth"
+	"github.com/nikojunttila/community/internal/cache"
 	"github.com/nikojunttila/community/internal/logger"
 	"github.com/nikojunttila/community/internal/services/email"
 	userS "github.com/nikojunttila/community/internal/services/user"
@@ -15,7 +15,7 @@ import (
 func GetProfileHandlerAdmin(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	logger.Info(ctx, "admin profile access")
-	user, err := auth.GetUserFromContext(r.Context())
+	user, err := cache.GetUser(ctx)
 	if err != nil {
 		RespondWithError(w, ctx, http.StatusInternalServerError, "Failed to find active user", err)
 		return
@@ -29,7 +29,7 @@ func GetProfileHandlerAdmin(w http.ResponseWriter, r *http.Request) {
 // GetProfileHandler retrieves the authenticated user's profile
 func GetProfileAdmin(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
-	admin, err := auth.GetUserFromContext(ctx)
+	admin, err := cache.GetUser(ctx)
 	if err != nil {
 		RespondWithError(w, r.Context(), http.StatusInternalServerError, "Failed to find active user", err)
 		return

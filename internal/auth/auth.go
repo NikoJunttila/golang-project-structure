@@ -47,12 +47,11 @@ func MakeToken(lookupID string, role ...string) string {
 var ErrLookupIDMissing = errors.New("lookupID not found in token")
 var ErrUserNotFound = errors.New("user not found in database")
 
-// GetUserFromContext retrieves the authenticated user from the JWT claims in the request context
-func GetUserFromContext(ctx context.Context) (db.User, error) {
+func GetUserLookupID(ctx context.Context) (string, error) {
 	_, claims, err := jwtauth.FromContext(ctx)
 	if err != nil {
 		logger.Error(ctx, err, "invalid JWT context")
-		return db.User{}, err
+		return "", err
 	}
 	// Log full claims for debugging
 	logger.Debug(ctx, fmt.Sprintf("JWT claims %s", claims))
@@ -60,14 +59,21 @@ func GetUserFromContext(ctx context.Context) (db.User, error) {
 	lookupID, ok := claims[ClaimLookupID].(string)
 	if !ok || lookupID == "" {
 		logger.Warn(ctx, nil, "lookupID missing from token claims")
-		return db.User{}, ErrLookupIDMissing
+		return "", ErrLookupIDMissing
 	}
+	return lookupID, nil
+}
 
+// GetUserFromContext retrieves the authenticated user from the JWT claims in the request context
+func GetUserFromContext(ctx context.Context) (db.User, error) {
+	lookupID, err := GetUserLookupID(ctx)
+	if err != nil {
+		return db.User{}, err
+	}
 	user, err := db.Get().GetUserBylookupID(ctx, lookupID)
 	if err != nil {
 		logger.Error(ctx, err, fmt.Sprintf("no user found for lookupID %s", lookupID))
 		return db.User{}, ErrUserNotFound
 	}
-
 	return user, nil
 }

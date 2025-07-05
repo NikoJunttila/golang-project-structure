@@ -10,7 +10,6 @@ import (
 	"github.com/nikojunttila/community/internal/auth"
 	"github.com/nikojunttila/community/internal/db"
 	"github.com/nikojunttila/community/internal/logger"
-	"github.com/rs/zerolog/log"
 )
 
 func FetchUserWithEmail(ctx context.Context, email string) (db.User, error) {
@@ -30,7 +29,6 @@ func CheckUserExists(ctx context.Context, email string) (bool, error) {
 	if errors.Is(err, sql.ErrNoRows) {
 		return false, nil // user does not exist
 	}
-	log.Error().Err(err).Msg("error checking if user exists")
 	return false, err // actual error
 }
 

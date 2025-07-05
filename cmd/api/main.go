@@ -10,6 +10,7 @@ import (
 	"github.com/go-chi/cors"
 	"github.com/joho/godotenv"
 	"github.com/nikojunttila/community/internal/auth"
+	"github.com/nikojunttila/community/internal/cache"
 	"github.com/nikojunttila/community/internal/db"
 	"github.com/nikojunttila/community/internal/logger"
 	customMW "github.com/nikojunttila/community/internal/middleware"
@@ -41,6 +42,7 @@ func main() {
 	if err := godotenv.Load(); err != nil {
 		log.Fatal().Err(err).Msg("Error loading .env file:")
 	}
+	cache.SetupUserCache()
 	logger.LoggerSetup()
 	db.InitDefault()
 	auth.InitAuth()
