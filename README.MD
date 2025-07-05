@@ -14,12 +14,6 @@ gofmt -w . to fix formatting
 gofmt -l . to list formatting errors
 goimports -w . fix imports
 
-
-Calling a function to log inside logger will break caller info
-
-// Consider caching user data to reduce database hits
-var userCache = make(map[string]db.User)
-
 maybe add this in airbytes or other things need later
 https://github.com/benmanns/goworker
 
