@@ -31,12 +31,30 @@ jobs:
           ${{ runner.os }}-go-
 
     - name: Download dependencies
-      run: go mod tidy
-
-    - name: Install golangci-lint
       run: |
-        curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s -- -b $GITHUB_WORKSPACE/bin v1.56.2
+        go mod tidy
+        go mod download
+
+    - name: Install tools (sqlc, goose, golangci-lint, sqlite3)
+      run: |
+        curl -sSfL https://github.com/sqlc-dev/sqlc/releases/latest/download/sqlc_linux_amd64.tar.gz | tar -xvz
+        sudo mv sqlc /usr/local/bin/
+
+        curl -sSfL https://github.com/pressly/goose/releases/latest/download/goose_linux_amd64.tar.gz | tar -xvz
+        sudo mv goose /usr/local/bin/
+
+        sudo apt-get update
+        sudo apt-get install -y sqlite3
+
+        curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh \
+          | sh -s -- -b $GITHUB_WORKSPACE/bin v1.56.2
         echo "$GITHUB_WORKSPACE/bin" >> $GITHUB_PATH
+
+    - name: Generate Go code from SQL
+      run: sqlc generate
+
+    - name: Run DB migrations (SQLite)
+      run: goose -dir ./sql/schema sqlite3 ./app.db up
 
     - name: Run linter
       run: golangci-lint run ./...
