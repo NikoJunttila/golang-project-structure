@@ -1,8 +1,8 @@
 run: build
-	@./bin/discord.exe
+	@./bin/webservice.exe
 
 build:
-	@go build -o bin/discord.exe ./cmd/api/
+	@go build -o bin/webservice.exe ./cmd/api/
 
 dev:
 	@air -c .air.toml

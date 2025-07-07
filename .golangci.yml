@@ -1,0 +1,11 @@
+
+# .golangci.yml
+run:
+  timeout: 3m
+linters:
+  enable:
+    - govet
+    - gofmt
+    - errcheck
+    - staticcheck
+    - revive
