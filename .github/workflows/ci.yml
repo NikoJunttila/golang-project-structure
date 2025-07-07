@@ -33,7 +33,7 @@ jobs:
     - name: Download dependencies
       run: |
         go mod tidy
-        go mod download
+        go mod vendor
 
     - name: Install tools (sqlc, goose, golangci-lint, sqlite3)
       run: |
@@ -52,7 +52,7 @@ jobs:
       run: goose -dir ./sql/schema sqlite3 ./app.db up
 
     - name: Run linter
-      run: golangci-lint run ./...
+      run: golangci-lint run --modules-download-mode=vendor ./...
 
     - name: Build binary
       run: go build -o bin/webservice.exe ./cmd/api/
