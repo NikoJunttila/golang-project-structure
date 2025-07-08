@@ -10,7 +10,7 @@ import (
 	chimiddleware "github.com/go-chi/chi/v5/middleware"
 	"github.com/rs/zerolog"
 )
-
+//InitializeMiddleware contains middleware that all routes use
 func InitializeMiddleware(r *chi.Mux, logger zerolog.Logger) {
 	//rate limiting - 10 requests per second per IP
 	//First param is requests per second and clears inactive IPS after hour

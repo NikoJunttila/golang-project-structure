@@ -1,3 +1,4 @@
+//Package middleware contains all middleware logic
 package middleware
 
 import (
@@ -15,7 +16,9 @@ import (
 	"github.com/nikojunttila/community/internal/db"
 	"github.com/nikojunttila/community/internal/logger"
 )
+type contextKey string
 
+const requestIDKey contextKey = "request_id"
 // responseWriter wrapper to capture status code and response
 type auditResponseWriter struct {
 	http.ResponseWriter
@@ -49,7 +52,7 @@ func AdminAuditMiddleware() func(http.Handler) http.Handler {
 			requestID := fmt.Sprintf("req_%d_%s", startTime.UnixNano(), generateShortID())
 
 			// Add request ID to context for potential use in handlers
-			ctx := context.WithValue(r.Context(), "request_id", requestID)
+			ctx := context.WithValue(r.Context(), requestIDKey, requestID)
 			r = r.WithContext(ctx)
 
 			// Capture request body (if present)

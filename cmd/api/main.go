@@ -1,3 +1,4 @@
+//Package main initializes the whole app
 package main
 
 import (
@@ -17,7 +18,7 @@ import (
 	"github.com/nikojunttila/community/internal/routes"
 	"github.com/nikojunttila/community/internal/services/cron"
 	"github.com/nikojunttila/community/internal/services/email"
-	"github.com/nikojunttila/community/internal/util"
+	"github.com/nikojunttila/community/internal/utility"
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
 	"gopkg.in/natefinch/lumberjack.v2"
@@ -43,11 +44,11 @@ func main() {
 		log.Fatal().Err(err).Msg("Error loading .env file:")
 	}
 	cache.SetupUserCache()
-	logger.LoggerSetup()
+	logger.Setup()
 	db.InitDefault()
-	auth.InitAuth()
+	auth.Setup()
 	email.EmailerInit(&email.Mailer)
-	cron.SetupCron()
+	cron.Setup()
 	r := chi.NewRouter()
 	r.Use(cors.Handler(cors.Options{
 		AllowedOrigins:   []string{"https://*", "http://*"},
@@ -60,7 +61,7 @@ func main() {
 	requestLogger := createRequestLogger()
 	customMW.InitializeMiddleware(r, requestLogger)
 	routes.InitializeRoutes(r)
-	portAddr := fmt.Sprintf(":%s", util.GetEnv("PORT"))
+	portAddr := fmt.Sprintf(":%s", utility.GetEnv("PORT"))
 	log.Info().Msgf("Listening at: %s", portAddr)
 	err := http.ListenAndServe(portAddr, r)
 	log.Fatal().Err(err).Msg("???")

@@ -14,6 +14,7 @@ import (
 // You can find the Private API Key in your Account Menu, under "Settings":
 // (https://app.mailgun.com/settings/api_security)
 
+//SendTestEmail sends simple email
 func (m *Emailer) SendTestEmail() {
 	// When you have an EU domain, you must specify the endpoint:
 	// err := mg.SetAPIBase(mailgun.APIBaseEU)

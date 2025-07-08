@@ -10,12 +10,13 @@ type exampleParams struct {
 	Email    string `json:"email"`
 }
 
-var emailAndPass = errors.New("email or password is missing")
+var errEmailAndPass = errors.New("email or password is missing")
 
+//GetFooHandler foo handler
 func GetFooHandler(w http.ResponseWriter, r *http.Request) {
-	RespondWithJson(w, r.Context(), http.StatusOK, "foo")
+	RespondWithJSON(r.Context(),w, http.StatusOK, "foo")
 }
-
+//ExampleHandler basic version of golang web service handler reading form data
 func ExampleHandler(w http.ResponseWriter, r *http.Request) {
 	var params exampleParams
 	if !DecodeJSONBody(w, r, &params, 0) {
@@ -24,8 +25,8 @@ func ExampleHandler(w http.ResponseWriter, r *http.Request) {
 
 	// Validate params
 	if params.Email == "" || params.Password == "" {
-		RespondWithError(w, r.Context(), 400, "email and password are required", emailAndPass)
+		RespondWithError(r.Context(),w, 400, "email and password are required", errEmailAndPass)
 		return
 	}
-	RespondWithJson(w, r.Context(), 200, "example")
+	RespondWithJSON(r.Context(),w, 200, "example")
 }

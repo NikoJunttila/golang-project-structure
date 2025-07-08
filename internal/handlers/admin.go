@@ -11,27 +11,28 @@ import (
 	userS "github.com/nikojunttila/community/internal/services/user"
 )
 
-// GetProfileHandler retrieves the authenticated user's profile
+// GetProfileHandlerAdmin retrieves the authenticated user's profile
 func GetProfileHandlerAdmin(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	logger.Info(ctx, "admin profile access")
 	user, err := cache.GetUser(ctx)
 	if err != nil {
-		RespondWithError(w, ctx, http.StatusInternalServerError, "Failed to find active user", err)
+		RespondWithError(ctx,w, http.StatusInternalServerError, "Failed to find active user", err)
 		return
 	}
 	go func() {
-		email.Mailer.Send(context.Background(), "", "nikosamulijunttila@gmail.com", "better test", "<h1>hellope!</h1>", "hellope")
+		_ = email.Mailer.Send(context.Background(), "", "nikosamulijunttila@gmail.com", "better test", "<h1>hellope!</h1>", "hellope")
+
 	}()
-	RespondWithJson(w, ctx, http.StatusOK, user)
+	RespondWithJSON(ctx,w, http.StatusOK, user)
 }
 
-// GetProfileHandler retrieves the authenticated user's profile
+// GetProfileAdmin retrieves the authenticated user's profile
 func GetProfileAdmin(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	admin, err := cache.GetUser(ctx)
 	if err != nil {
-		RespondWithError(w, r.Context(), http.StatusInternalServerError, "Failed to find active user", err)
+		RespondWithError(r.Context(),w, http.StatusInternalServerError, "Failed to find active user", err)
 		return
 	}
 	type userFetchParams struct {
@@ -43,10 +44,10 @@ func GetProfileAdmin(w http.ResponseWriter, r *http.Request) {
 	}
 	user, err := userS.FetchUserWithEmail(ctx, params.Email)
 	if err != nil {
-		RespondWithError(w, ctx, http.StatusBadRequest, "Could not fetch user with this email", err)
+		RespondWithError(ctx,w, http.StatusBadRequest, "Could not fetch user with this email", err)
 		return
 	}
 
 	logger.Info(r.Context(), fmt.Sprintf("Profile accessed %s by %s", user.ID, admin.ID))
-	RespondWithJson(w, ctx, http.StatusOK, user)
+	RespondWithJSON(ctx,w, http.StatusOK, user)
 }

@@ -1,3 +1,4 @@
+//Package main used to bootstrap data for local testing
 package main
 
 import (

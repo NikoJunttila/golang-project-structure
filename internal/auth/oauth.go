@@ -7,20 +7,20 @@ import (
 	"github.com/markbates/goth"
 	"github.com/markbates/goth/gothic"
 	"github.com/markbates/goth/providers/google"
-	"github.com/nikojunttila/community/internal/util"
+	"github.com/nikojunttila/community/internal/utility"
 )
 
 const (
 	maxAge = 86400 * 30
 )
 
-func NewAuth() {
-	ClientID := util.GetEnv("OAUTH_GOOGLE_CLIENT")
-	ClientSecret := util.GetEnv("OAUTH_GOOGLE_SECRET")
-	redirect_URL := util.GetEnv("GOOGLE_REDIRECT")
-	key := util.GetEnv("OAUTH_KEY")
+func newAuth() {
+	ClientID := utility.GetEnv("OAUTH_GOOGLE_CLIENT")
+	ClientSecret := utility.GetEnv("OAUTH_GOOGLE_SECRET")
+	redirectURL := utility.GetEnv("GOOGLE_REDIRECT")
+	key := utility.GetEnv("OAUTH_KEY")
 	var isProd bool
-	if prod := util.GetEnv("PROD"); prod == "true" {
+	if prod := utility.GetEnv("PROD"); prod == "true" {
 		isProd = true
 	}
 
@@ -33,5 +33,5 @@ func NewAuth() {
 	store.Options.SameSite = http.SameSiteLaxMode
 
 	gothic.Store = store
-	goth.UseProviders(google.New(ClientID, ClientSecret, redirect_URL))
+	goth.UseProviders(google.New(ClientID, ClientSecret, redirectURL))
 }

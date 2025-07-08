@@ -1,17 +1,18 @@
+//Package db contains sqlc generated code and initialization
 package db
 
 import (
 	"database/sql"
 	"log"
 
-	_ "modernc.org/sqlite"
+	_ "github.com/mattn/go-sqlite3" // Import for side-effects
 )
 
 const (
-	DriverSqlite3 = "sqlite"
-	DriverMysql   = "mysql"
+	driverSqlite3 = "sqlite3"
+	driverMysql   = "mysql"
 )
-
+//Config has database variables
 type Config struct {
 	Driver   string
 	Name     string
@@ -25,7 +26,7 @@ var dbInstance *Queries
 // InitDefault initializes the DB with hardcoded defaults (used in main for now)
 func InitDefault() {
 	Init(Config{
-		Driver: DriverSqlite3,
+		Driver: driverSqlite3,
 		Name:   "app.db",
 	})
 }

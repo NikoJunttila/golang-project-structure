@@ -15,6 +15,6 @@ func registerAuthRoutes(r chi.Router) {
 
 	r.Get("/dashboard", func(w http.ResponseWriter, r *http.Request) {
 		_, claims, _ := jwtauth.FromContext(r.Context())
-		w.Write(fmt.Appendf(nil, "Welcome to admin dashboard, %v", claims["username"]))
+		_, _ = w.Write(fmt.Appendf(nil, "Welcome to admin dashboard, %v", claims["username"]))
 	})
 }

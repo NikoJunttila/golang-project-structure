@@ -1,3 +1,4 @@
+//Package auth contains functions for authentication
 package auth
 
 import (
@@ -8,19 +9,20 @@ import (
 	"github.com/go-chi/jwtauth/v5"
 	"github.com/nikojunttila/community/internal/db"
 	"github.com/nikojunttila/community/internal/logger"
-	"github.com/nikojunttila/community/internal/util"
+	"github.com/nikojunttila/community/internal/utility"
 )
 
 var tokenAuth *jwtauth.JWTAuth
 
+// GetTokenAuth returns the JWT authentication instance used for token validation.
 func GetTokenAuth() *jwtauth.JWTAuth {
 	return tokenAuth
 }
-
-func InitAuth() {
-	secret := util.GetEnv("JWT_SECRET")
+// Setup is used to initiate auth system on startup
+func Setup() {
+	secret := utility.GetEnv("JWT_SECRET")
 	tokenAuth = jwtauth.New("HS256", []byte(secret), nil)
-	NewAuth()
+	newAuth()
 }
 
 // define claim keys to avoid typos
@@ -44,9 +46,10 @@ func MakeToken(lookupID string, role ...string) string {
 	return tokenString
 }
 
-var ErrLookupIDMissing = errors.New("lookupID not found in token")
-var ErrUserNotFound = errors.New("user not found in database")
+var errLookupIDMissing = errors.New("lookupID not found in token")
+var errUserNotFound = errors.New("user not found in database")
 
+//GetUserLookupID returns lookup id from context
 func GetUserLookupID(ctx context.Context) (string, error) {
 	_, claims, err := jwtauth.FromContext(ctx)
 	if err != nil {
@@ -59,7 +62,7 @@ func GetUserLookupID(ctx context.Context) (string, error) {
 	lookupID, ok := claims[ClaimLookupID].(string)
 	if !ok || lookupID == "" {
 		logger.Warn(ctx, nil, "lookupID missing from token claims")
-		return "", ErrLookupIDMissing
+		return "", errLookupIDMissing
 	}
 	return lookupID, nil
 }
@@ -73,7 +76,7 @@ func GetUserFromContext(ctx context.Context) (db.User, error) {
 	user, err := db.Get().GetUserBylookupID(ctx, lookupID)
 	if err != nil {
 		logger.Error(ctx, err, fmt.Sprintf("no user found for lookupID %s", lookupID))
-		return db.User{}, ErrUserNotFound
+		return db.User{}, errUserNotFound
 	}
 	return user, nil
 }

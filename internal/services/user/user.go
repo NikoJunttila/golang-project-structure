@@ -1,4 +1,4 @@
-package userService
+package userservice
 
 import (
 	"context"
@@ -11,7 +11,7 @@ import (
 	"github.com/nikojunttila/community/internal/db"
 	"github.com/nikojunttila/community/internal/logger"
 )
-
+//FetchUserWithEmail return user from email address
 func FetchUserWithEmail(ctx context.Context, email string) (db.User, error) {
 	user, err := db.Get().GetUserByEmail(ctx, email)
 	if err != nil {
@@ -20,7 +20,7 @@ func FetchUserWithEmail(ctx context.Context, email string) (db.User, error) {
 	}
 	return user, nil
 }
-
+//CheckUserExists tries to find user, retun true if finds user
 func CheckUserExists(ctx context.Context, email string) (bool, error) {
 	_, err := db.Get().GetUserByEmail(ctx, email)
 	if err == nil {
@@ -32,7 +32,7 @@ func CheckUserExists(ctx context.Context, email string) (bool, error) {
 	return false, err // actual error
 }
 
-// CheckUserExistIfNotCreate checks if a user exists by email, creates if not exists
+//CreateUser add user to database either from oath or email
 func CreateUser(ctx context.Context, password string, params CreateUserParams, oAuth OauthCreate) (db.User, error) {
 	var passHash string
 	var err error
@@ -50,7 +50,7 @@ func CreateUser(ctx context.Context, password string, params CreateUserParams, o
 		Email:         params.Email,
 		PasswordHash:  passHash, // OAuth users don't have passwords
 		Name:          params.Name,
-		AvatarUrl:     params.AvatarUrl,
+		AvatarUrl:     params.AvatarURL,
 		Provider:      oAuth.Provider,
 		ProviderID:    oAuth.ProviderID,
 		EmailVerified: oAuth.EmailVerified,

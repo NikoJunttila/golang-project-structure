@@ -1,3 +1,4 @@
+//Package logger contains all logging logic
 package logger
 
 import (
@@ -71,9 +72,9 @@ func Fatal(ctx context.Context, err error, message string) {
 	FromContext(ctx).Fatal().Err(err).Msg(message)
 }
 
-// LoggerSetup initializes the global zerolog logger for the application.
+// Setup initializes the global zerolog logger for the application.
 // This is useful for logging events that are not part of a request lifecycle.
-func LoggerSetup() {
+func Setup() {
 	// Create the logs directory if it doesn't exist.
 	if _, err := os.Stat("logs"); os.IsNotExist(err) {
 		_ = os.Mkdir("logs", 0755)

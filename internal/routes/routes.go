@@ -1,3 +1,4 @@
+//Package routes is routing logic
 package routes
 
 import (
@@ -11,7 +12,7 @@ import (
 	"github.com/nikojunttila/community/internal/handlers"
 	"github.com/nikojunttila/community/internal/middleware"
 )
-
+//InitializeRoutes is used to setup all routes belonging to this web service
 func InitializeRoutes(r *chi.Mux) {
 	r.Get("/health", handlers.HealthCheck)
 	r.Get("/health/db", handlers.HealthCheckDB)

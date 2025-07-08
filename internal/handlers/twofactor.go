@@ -27,7 +27,8 @@ import (
 
 var templates = tp.Templates
 
-func GetHomeHandler(w http.ResponseWriter, r *http.Request) {
+//GetHomeHandler returns html template for home page
+func GetHomeHandler(w http.ResponseWriter, _ *http.Request) {
 	err := templates.ExecuteTemplate(w, "home.html", nil)
 	if err != nil {
 		log.Error().Msgf("Template error: %v", err)
@@ -35,19 +36,19 @@ func GetHomeHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 }
-
+//LoginHandler does both get for html page and post for submitting form
 func LoginHandler(w http.ResponseWriter, r *http.Request) {
 	logger.Info(r.Context(), "login attempt")
 	if r.Method == "GET" {
 		err := templates.ExecuteTemplate(w, "login.html", nil)
 		if err != nil {
-			RespondWithError(w, r.Context(), http.StatusInternalServerError, "Internal server error", err)
+			RespondWithError(r.Context(),w, http.StatusInternalServerError, "Internal server error", err)
 			return
 		}
 		return
 	}
 	if err := r.ParseForm(); err != nil {
-		RespondWithError(w, r.Context(), http.StatusBadRequest, "Error parsing form", err)
+		RespondWithError(r.Context(),w, http.StatusBadRequest, "Error parsing form", err)
 		return
 	}
 
@@ -62,22 +63,22 @@ func LoginHandler(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			// Don't reveal whether user exists or password is wrong for security
-			RespondWithError(w, r.Context(), http.StatusUnauthorized, "Invalid email or password", userService.ErrWrongPassword)
+			RespondWithError(r.Context(),w, http.StatusUnauthorized, "Invalid email or password", userService.ErrWrongPassword)
 			return
 		}
 
 		log.Error().Msgf("database error during login %v", err)
-		RespondWithError(w, r.Context(), http.StatusInternalServerError, "Internal server error", err)
+		RespondWithError(r.Context(),w, http.StatusInternalServerError, "Internal server error", err)
 		return
 	}
 	if user.Provider != string(userService.GetServiceEnumName(userService.Email)) {
-		RespondWithError(w, r.Context(), http.StatusBadRequest,
+		RespondWithError(r.Context(),w, http.StatusBadRequest,
 			"Please use the authentication method you originally signed up with",
 			userService.ErrIncorrectAuthType)
 		return
 	}
 	if !auth.CheckPasswordHash(password, user.PasswordHash) {
-		RespondWithError(w, r.Context(), http.StatusUnauthorized, "Invalid email or password", userService.ErrWrongPassword)
+		RespondWithError(r.Context(),w, http.StatusUnauthorized, "Invalid email or password", userService.ErrWrongPassword)
 		return
 	}
 	// Generate JWT token
@@ -104,7 +105,7 @@ func LoginHandler(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Internal Server Error", http.StatusInternalServerError)
 	}
 }
-
+//GetGenerateOTPHandler page for generating 2 factor auth code
 func GetGenerateOTPHandler(w http.ResponseWriter, r *http.Request) {
 	user, err := cache.GetUser(r.Context())
 	if err != nil {
@@ -162,7 +163,7 @@ func GetGenerateOTPHandler(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Internal Server Error", http.StatusInternalServerError)
 	}
 }
-
+//ValidateOTPHandler is for 2 factor auth validation
 func ValidateOTPHandler(w http.ResponseWriter, r *http.Request) {
 	switch r.Method {
 	case "GET":
@@ -227,7 +228,7 @@ func ValidateOTPHandler(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Method Not Allowed", http.StatusMethodNotAllowed)
 	}
 }
-
+//GetDashboardHandler returns dashboard for authenticatedUser
 func GetDashboardHandler(w http.ResponseWriter, r *http.Request) {
 	cookie, err := r.Cookie("authenticatedUser")
 	if err != nil || cookie.Value == "" {

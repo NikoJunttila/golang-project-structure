@@ -10,23 +10,24 @@ import (
 	"github.com/nikojunttila/community/internal/logger"
 )
 
-type HealthResponse struct {
+type healthResponse struct {
 	Status string `json:"status"`
 	Time   string `json:"timestamp"`
 }
-
-func HealthCheck(w http.ResponseWriter, r *http.Request) {
+//HealthCheck basic get request to check if service is alive
+func HealthCheck(w http.ResponseWriter, _ *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
 
-	response := HealthResponse{
+	response := healthResponse{
 		Status: "healthy",
 		Time:   time.Now().UTC().Format(time.RFC3339),
 	}
 
-	json.NewEncoder(w).Encode(response)
+	_ = json.NewEncoder(w).Encode(response)
 }
 
+//HealthCheckDB basic get request to check if services database is alive
 func HealthCheckDB(w http.ResponseWriter, r *http.Request) {
 	start := time.Now() // Add this line
 
@@ -39,7 +40,7 @@ func HealthCheckDB(w http.ResponseWriter, r *http.Request) {
 		logger.Error(ctx, err, "Database health check problems")
 		w.WriteHeader(http.StatusServiceUnavailable)
 		// Include error info in response
-		json.NewEncoder(w).Encode(map[string]any{
+		_ = json.NewEncoder(w).Encode(map[string]any{
 			"status":        "unhealthy",
 			"timestamp":     time.Now().UTC().Format(time.RFC3339),
 			"response_time": time.Since(start).String(),
@@ -49,7 +50,7 @@ func HealthCheckDB(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.WriteHeader(http.StatusOK)
-	json.NewEncoder(w).Encode(map[string]any{
+	_ = json.NewEncoder(w).Encode(map[string]any{
 		"status":        "Healthy",
 		"timestamp":     time.Now().UTC().Format(time.RFC3339),
 		"response_time": time.Since(start).String(),
