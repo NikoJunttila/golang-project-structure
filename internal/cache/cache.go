@@ -1,4 +1,4 @@
-//Package cache contains caching functions
+// Package cache contains caching functions
 package cache
 
 import (
@@ -12,7 +12,8 @@ import (
 )
 
 var userCache *lru.Cache[string, db.User]
-//SetupUserCache inits the user cache
+
+// SetupUserCache inits the user cache
 func SetupUserCache() {
 	var err error
 	userCache, err = lru.New[string, db.User](256)
@@ -20,7 +21,8 @@ func SetupUserCache() {
 		logger.Fatal(context.Background(), err, "Failed to setup cache")
 	}
 }
-//GetUser returns user from cache using context
+
+// GetUser returns user from cache using context
 func GetUser(ctx context.Context) (db.User, error) {
 	lookupID, err := auth.GetUserLookupID(ctx)
 	if err != nil {
@@ -30,12 +32,12 @@ func GetUser(ctx context.Context) (db.User, error) {
 	if ok {
 		logger.Info(ctx, "user from cache")
 		return user, nil
-	} 
-		user, err = auth.GetUserFromContext(ctx)
-		if err != nil {
-			return db.User{}, err
-		}
-		logger.Info(ctx, fmt.Sprintf("Adding user to cache: %s", user.Email))
-		userCache.Add(user.LookupID, user)
-		return user, nil
+	}
+	user, err = auth.GetUserFromContext(ctx)
+	if err != nil {
+		return db.User{}, err
+	}
+	logger.Info(ctx, fmt.Sprintf("Adding user to cache: %s", user.Email))
+	userCache.Add(user.LookupID, user)
+	return user, nil
 }

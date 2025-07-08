@@ -1,4 +1,4 @@
-//Package handlers has all http handlers and utility functions for those
+// Package handlers has all http handlers and utility functions for those
 package handlers
 
 import (
@@ -24,14 +24,14 @@ func RespondWithError(ctx context.Context, w http.ResponseWriter, code int, msg 
 	} else {
 		logger.Warn(ctx, err, fmt.Sprintf("Client error response: %s", msg))
 	}
-	RespondWithJSON(ctx,w, code, errResponse{
+	RespondWithJSON(ctx, w, code, errResponse{
 		Error: msg,
 	})
 }
 
 // RespondWithJSON sends a JSON response with the given status code and payload.
 // If JSON marshaling fails, it sends a 500 Internal Server Error response.
-func RespondWithJSON(ctx context.Context,w http.ResponseWriter, code int, payload any) {
+func RespondWithJSON(ctx context.Context, w http.ResponseWriter, code int, payload any) {
 	dat, err := json.Marshal(payload)
 	if err != nil {
 		logger.Error(ctx, err, fmt.Sprintf("Failed to marshal JSON response %v", payload))
@@ -64,12 +64,12 @@ func DecodeJSONBody(w http.ResponseWriter, r *http.Request, v any, maxSize int64
 	decoder := json.NewDecoder(r.Body)
 	decoder.DisallowUnknownFields()
 
-	return DecodeJSONWithError(r.Context(),w,decoder, v)
+	return DecodeJSONWithError(r.Context(), w, decoder, v)
 }
 
 // DecodeJSONWithError decodes JSON using the given decoder into the value `v`.
 // It returns true if decoding succeeds, false if an error occurs (and response is sent).
-func DecodeJSONWithError(ctx context.Context,w http.ResponseWriter, decoder *json.Decoder, v any) bool {
+func DecodeJSONWithError(ctx context.Context, w http.ResponseWriter, decoder *json.Decoder, v any) bool {
 	if err := decoder.Decode(v); err != nil {
 		handleJSONDecodeError(ctx, w, err)
 		return false
@@ -78,16 +78,15 @@ func DecodeJSONWithError(ctx context.Context,w http.ResponseWriter, decoder *jso
 }
 
 // handleJSONDecodeError handles specific JSON decoding errors and responds with an appropriate HTTP error.
-func handleJSONDecodeError(ctx context.Context,w http.ResponseWriter, err error) {
+func handleJSONDecodeError(ctx context.Context, w http.ResponseWriter, err error) {
 	switch err := err.(type) {
 	case *json.SyntaxError:
-		RespondWithError(ctx,w, http.StatusBadRequest, "invalid JSON syntax", err)
+		RespondWithError(ctx, w, http.StatusBadRequest, "invalid JSON syntax", err)
 	case *json.UnmarshalTypeError:
-		RespondWithError(ctx,w, http.StatusBadRequest, fmt.Sprintf("invalid type for field %s", err.Field), err)
+		RespondWithError(ctx, w, http.StatusBadRequest, fmt.Sprintf("invalid type for field %s", err.Field), err)
 	case *http.MaxBytesError:
-		RespondWithError(ctx,w, http.StatusRequestEntityTooLarge, "request body too large", err)
+		RespondWithError(ctx, w, http.StatusRequestEntityTooLarge, "request body too large", err)
 	default:
-		RespondWithError(ctx,w, http.StatusBadRequest, "error parsing JSON", err)
+		RespondWithError(ctx, w, http.StatusBadRequest, "error parsing JSON", err)
 	}
 }
-

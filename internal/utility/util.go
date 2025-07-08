@@ -1,4 +1,4 @@
-//Package utility contains utility functions
+// Package utility contains utility functions
 package utility
 
 import (
@@ -9,7 +9,8 @@ import (
 )
 
 var errEnv = errors.New("failed to get from env")
-//GetEnv utility function to log fatal if fails to find value from env
+
+// GetEnv utility function to log fatal if fails to find value from env
 func GetEnv(name string) string {
 	value := os.Getenv(name)
 	if value == "" {

@@ -1,4 +1,4 @@
-//Package cron contains cron job initializes
+// Package cron contains cron job initializes
 package cron
 
 import (
@@ -12,7 +12,8 @@ import (
 func task() {
 	fmt.Println("hellope from cronjob")
 }
-//Setup initializes cron jobs
+
+// Setup initializes cron jobs
 func Setup() {
 	c := cron.New()
 	// c.AddFunc("@every 1s", func() {
@@ -22,8 +23,8 @@ func Setup() {
 		task()
 	})
 	if err != nil {
-	logger.Fatal(context.Background(),err,"Failed to add cron job")
-  return
+		logger.Fatal(context.Background(), err, "Failed to add cron job")
+		return
 	}
 	c.Start()
 }

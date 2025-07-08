@@ -1,4 +1,4 @@
-//Package main initializes the whole app
+// Package main initializes the whole app
 package main
 
 import (

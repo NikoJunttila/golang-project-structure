@@ -11,7 +11,8 @@ import (
 	"github.com/nikojunttila/community/internal/db"
 	"github.com/nikojunttila/community/internal/logger"
 )
-//FetchUserWithEmail return user from email address
+
+// FetchUserWithEmail return user from email address
 func FetchUserWithEmail(ctx context.Context, email string) (db.User, error) {
 	user, err := db.Get().GetUserByEmail(ctx, email)
 	if err != nil {
@@ -20,7 +21,8 @@ func FetchUserWithEmail(ctx context.Context, email string) (db.User, error) {
 	}
 	return user, nil
 }
-//CheckUserExists tries to find user, retun true if finds user
+
+// CheckUserExists tries to find user, retun true if finds user
 func CheckUserExists(ctx context.Context, email string) (bool, error) {
 	_, err := db.Get().GetUserByEmail(ctx, email)
 	if err == nil {
@@ -32,7 +34,7 @@ func CheckUserExists(ctx context.Context, email string) (bool, error) {
 	return false, err // actual error
 }
 
-//CreateUser add user to database either from oath or email
+// CreateUser add user to database either from oath or email
 func CreateUser(ctx context.Context, password string, params CreateUserParams, oAuth OauthCreate) (db.User, error) {
 	var passHash string
 	var err error

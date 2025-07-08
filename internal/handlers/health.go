@@ -14,7 +14,8 @@ type healthResponse struct {
 	Status string `json:"status"`
 	Time   string `json:"timestamp"`
 }
-//HealthCheck basic get request to check if service is alive
+
+// HealthCheck basic get request to check if service is alive
 func HealthCheck(w http.ResponseWriter, _ *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
@@ -27,7 +28,7 @@ func HealthCheck(w http.ResponseWriter, _ *http.Request) {
 	_ = json.NewEncoder(w).Encode(response)
 }
 
-//HealthCheckDB basic get request to check if services database is alive
+// HealthCheckDB basic get request to check if services database is alive
 func HealthCheckDB(w http.ResponseWriter, r *http.Request) {
 	start := time.Now() // Add this line
 

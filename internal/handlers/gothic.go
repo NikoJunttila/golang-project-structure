@@ -1,4 +1,3 @@
-
 package handlers
 
 import (
@@ -81,4 +80,3 @@ func GetAuthCallBack(w http.ResponseWriter, r *http.Request) {
 func GetBeginAuth(w http.ResponseWriter, r *http.Request) {
 	gothic.BeginAuthHandler(w, r)
 }
-

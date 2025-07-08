@@ -1,4 +1,4 @@
-//Package logger contains all logging logic
+// Package logger contains all logging logic
 package logger
 
 import (

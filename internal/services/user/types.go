@@ -1,4 +1,4 @@
-//Package userservice contains necessary functionality for user
+// Package userservice contains necessary functionality for user
 package userservice
 
 import "errors"
@@ -53,4 +53,3 @@ type CreateUserParams struct {
 	Service   string
 	AvatarURL string
 }
-

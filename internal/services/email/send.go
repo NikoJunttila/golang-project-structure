@@ -1,4 +1,4 @@
-//Package email uses mailgun library to send emails
+// Package email uses mailgun library to send emails
 package email
 
 import (
@@ -12,15 +12,17 @@ import (
 	"github.com/rs/zerolog/log"
 )
 
-//Emailer struct for sending emails
+// Emailer struct for sending emails
 type Emailer struct {
 	mg     *mailgun.Client
 	APIKey string
 	Domain string
 }
-//Mailer object that can send emails
+
+// Mailer object that can send emails
 var Mailer Emailer
-//EmailerInit add env variables to Emailer config
+
+// EmailerInit add env variables to Emailer config
 func EmailerInit(cfg *Emailer) {
 	cfg.Domain = utility.GetEnv("MAILGUN_DOMAIN")
 	cfg.APIKey = utility.GetEnv("MAILGUN_APIKEY")
@@ -28,7 +30,7 @@ func EmailerInit(cfg *Emailer) {
 	cfg.mg = mailgun.NewMailgun(cfg.APIKey)
 }
 
-//SENDER email address
+// SENDER email address
 // Your available domain names can be found here:
 // (https://app.mailgun.com/app/domains)
 const SENDER = "Mailgun Sandbox <postmaster@sandbox7d11108326a74cf69ccfa984fc064eef.mailgun.org>"

@@ -1,4 +1,4 @@
-//Package db contains sqlc generated code and initialization
+// Package db contains sqlc generated code and initialization
 package db
 
 import (
@@ -12,7 +12,8 @@ const (
 	driverSqlite3 = "sqlite3"
 	driverMysql   = "mysql"
 )
-//Config has database variables
+
+// Config has database variables
 type Config struct {
 	Driver   string
 	Name     string

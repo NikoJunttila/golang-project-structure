@@ -1,4 +1,4 @@
-//Package middleware contains all middleware logic
+// Package middleware contains all middleware logic
 package middleware
 
 import (
@@ -16,9 +16,11 @@ import (
 	"github.com/nikojunttila/community/internal/db"
 	"github.com/nikojunttila/community/internal/logger"
 )
+
 type contextKey string
 
 const requestIDKey contextKey = "request_id"
+
 // responseWriter wrapper to capture status code and response
 type auditResponseWriter struct {
 	http.ResponseWriter

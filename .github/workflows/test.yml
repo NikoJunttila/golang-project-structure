@@ -1,0 +1,61 @@
+name: Go CI
+
+on:
+  push:
+    branches: [master]
+  pull_request:
+    branches: [master]
+
+jobs:
+  build-test:
+    runs-on: ubuntu-latest
+
+    strategy:
+      matrix:
+        go: [1.24]
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: ${{ matrix.go }}
+          check-latest: true
+
+      - name: Cache Go modules
+        uses: actions/cache@v3
+        with:
+          path: |
+            ~/.cache/go-build
+            ~/go/pkg/mod
+          key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
+          restore-keys: |
+            ${{ runner.os }}-go-
+
+      - name: Download dependencies and vendor
+        run: |
+          go mod tidy
+          go mod vendor
+          go mod verify
+
+      - name: Install tools (sqlc, goose, sqlite3)
+        run: |
+          go install github.com/sqlc-dev/sqlc/cmd/sqlc@latest
+          go install github.com/pressly/goose/v3/cmd/goose@latest
+          sudo apt-get update
+          sudo apt-get install -y sqlite3
+
+      - name: Generate Go code from SQL
+        run: sqlc generate
+
+      - name: Run DB migrations (SQLite)
+        run: goose -dir ./sql/schema sqlite3 ./app.db up
+
+      - name: Build project
+        run: go build -v ./cmd/api
+
+      - name: Run tests
+        run: go test -v ./...
+

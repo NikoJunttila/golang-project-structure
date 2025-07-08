@@ -1,4 +1,4 @@
-//Package auth contains functions for authentication
+// Package auth contains functions for authentication
 package auth
 
 import (
@@ -18,6 +18,7 @@ var tokenAuth *jwtauth.JWTAuth
 func GetTokenAuth() *jwtauth.JWTAuth {
 	return tokenAuth
 }
+
 // Setup is used to initiate auth system on startup
 func Setup() {
 	secret := utility.GetEnv("JWT_SECRET")
@@ -49,7 +50,7 @@ func MakeToken(lookupID string, role ...string) string {
 var errLookupIDMissing = errors.New("lookupID not found in token")
 var errUserNotFound = errors.New("user not found in database")
 
-//GetUserLookupID returns lookup id from context
+// GetUserLookupID returns lookup id from context
 func GetUserLookupID(ctx context.Context) (string, error) {
 	_, claims, err := jwtauth.FromContext(ctx)
 	if err != nil {
