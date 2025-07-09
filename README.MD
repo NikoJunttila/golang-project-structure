@@ -10,7 +10,7 @@ index the lookup_id column for fast lookups
 error logs more informative when redoing this
 rate limiting per route ie login route has strict rate limit
 
-goimports -w . fix imports
+goimports -w . //fix imports
 gofmt -s -w . //fix formatting
 
 maybe add this in airbytes or other things need later

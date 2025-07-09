@@ -24,3 +24,13 @@ gen:
 
 test:
 	@go test ./tests/
+#linting with golangci-lint
+lint:
+	@golangci-lint run
+#Check locally github workflows
+ci/cd:
+	@act
+#Format and fix imports
+fmt:
+	@gofmt -s -w .
+	@goimports -w .

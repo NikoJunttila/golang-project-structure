@@ -5,7 +5,7 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/hashicorp/golang-lru/v2"
+	lru "github.com/hashicorp/golang-lru/v2"
 	"github.com/nikojunttila/community/internal/auth"
 	"github.com/nikojunttila/community/internal/db"
 	"github.com/nikojunttila/community/internal/logger"
