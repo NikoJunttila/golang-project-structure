@@ -1,0 +1,7 @@
+{
+  "exclude": {
+    "G101": [
+      "internal/db/users.sql.go"
+    ]
+  }
+}

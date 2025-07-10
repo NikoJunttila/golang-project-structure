@@ -77,7 +77,7 @@ func Fatal(ctx context.Context, err error, message string) {
 func Setup() {
 	// Create the logs directory if it doesn't exist.
 	if _, err := os.Stat("logs"); os.IsNotExist(err) {
-		_ = os.Mkdir("logs", 0755)
+		_ = os.Mkdir("logs", 0750)
 	}
 
 	// Set up lumberjack for log file rotation.

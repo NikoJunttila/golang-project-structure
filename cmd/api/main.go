@@ -6,6 +6,7 @@ import (
 	"io"
 	"net/http"
 	"os"
+	"time"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/cors"
@@ -24,7 +25,7 @@ import (
 	"gopkg.in/natefinch/lumberjack.v2"
 )
 
-// This function creates the dedicated logger for requests
+// createRequestLogger creates the dedicated logger for requests
 func createRequestLogger() zerolog.Logger {
 	requestLogFile := &lumberjack.Logger{
 		Filename: "logs/requests.log",
@@ -41,14 +42,18 @@ func createRequestLogger() zerolog.Logger {
 
 func main() {
 	if err := godotenv.Load(); err != nil {
-		log.Fatal().Err(err).Msg("Error loading .env file:")
+		log.Fatal().Err(err).Msg("Error loading .env file")
 	}
+
+	// Initialize internal services
 	cache.SetupUserCache()
 	logger.Setup()
 	db.InitDefault()
 	auth.Setup()
 	email.EmailerInit(&email.Mailer)
 	cron.Setup()
+
+	// Set up router and middleware
 	r := chi.NewRouter()
 	r.Use(cors.Handler(cors.Options{
 		AllowedOrigins:   []string{"https://*", "http://*"},
@@ -61,8 +66,19 @@ func main() {
 	requestLogger := createRequestLogger()
 	customMW.InitializeMiddleware(r, requestLogger)
 	routes.InitializeRoutes(r)
+
+	// Configure and start HTTP server with timeouts
 	portAddr := fmt.Sprintf(":%s", utility.GetEnv("PORT"))
+	srv := &http.Server{
+		Addr:         portAddr,
+		Handler:      r,
+		ReadTimeout:  10 * time.Second,
+		WriteTimeout: 10 * time.Second,
+		IdleTimeout:  120 * time.Second,
+	}
+
 	log.Info().Msgf("Listening at: %s", portAddr)
-	err := http.ListenAndServe(portAddr, r)
-	log.Fatal().Err(err).Msg("???")
+	if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+		log.Fatal().Err(err).Msg("HTTP server error")
+	}
 }

@@ -61,13 +61,15 @@ func PostFileUploadHandler(w http.ResponseWriter, r *http.Request) {
 func createFile(filename string) (*os.File, error) {
 	// Create an uploads directory if it doesn’t exist
 	if _, err := os.Stat("uploads"); os.IsNotExist(err) {
-		err := os.Mkdir("uploads", 0755)
+		err := os.Mkdir("uploads", 0750)
 		if err != nil {
 			return nil, err
 		}
 	}
 	// Build the file path and create it
-	dst, err := os.Create(filepath.Join("uploads", filename))
+	safeName := filepath.Base(filename) // strips directory components
+	// #nosec G304 -- safeName is sanitized with filepath.Base
+	dst, err := os.Create(filepath.Join("uploads", safeName))
 	if err != nil {
 		return nil, err
 	}

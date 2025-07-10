@@ -51,4 +51,5 @@ DELETE FROM users
 WHERE id = ?;
 
 -- name: UpdateUserSecret :exec
+-- #nosec G101 this is a parameterized query, no hardcoded credential
 UPDATE users SET secret = ? WHERE id = ?;
